@@ -205,9 +205,9 @@
 		}
 
 		_observeDom() {
-			// Track pending reattach attempts independently
-			let usageReattachPending = false;
-			let headerReattachPending = false;
+			// Schedule reattach on next animation frame without blocking or dropping intermediate DOM mutations
+			let usageReattachScheduled = false;
+			let headerReattachScheduled = false;
 
 			this.domObserver = new MutationObserver(() => {
 				const hasMsgs = this.hasMessages();
@@ -222,19 +222,19 @@
 				const usageMissing = (this.usageLine && !document.contains(this.usageLine)) || usageWrongLocation;
 				const headerMissing = !document.contains(this.headerContainer);
 
-				if (usageMissing && !usageReattachPending) {
-					usageReattachPending = true;
-					CC.waitForElement(CC.DOM.CHAT_INPUT, 10000).then((el) => {
-						usageReattachPending = false;
-						if (el) this.attachUsageLine();
+				if (usageMissing && !usageReattachScheduled) {
+					usageReattachScheduled = true;
+					requestAnimationFrame(() => {
+						usageReattachScheduled = false;
+						this.attachUsageLine();
 					});
 				}
 
-				if (headerMissing && !headerReattachPending) {
-					headerReattachPending = true;
-					CC.waitForElement(CC.DOM.CHAT_HEADER_ANCHOR, 10000).then((el) => {
-						headerReattachPending = false;
-						if (el) this.attachHeader();
+				if (headerMissing && !headerReattachScheduled) {
+					headerReattachScheduled = true;
+					requestAnimationFrame(() => {
+						headerReattachScheduled = false;
+						this.attachHeader();
 					});
 				}
 			});
@@ -562,8 +562,6 @@
 					return;
 				}
 			}
-
-			CC.warnOnce?.('anchor:composer', 'Usage row not attached: no valid composer container or input found');
 		}
 
 		setPendingCache(pending) {
@@ -748,6 +746,25 @@
 		}
 
 		tick() {
+			// Heartbeat safety check: guarantee usageLine and header stay attached across message sending and streaming
+			if (this.usageLine) {
+				const hasMsgs = this.hasMessages();
+				const wrongLocation = hasMsgs && (
+					this.usageLine.classList.contains('cc-usageRow--inComposer') ||
+					(this.usageLine.nextElementSibling && (
+						this.usageLine.nextElementSibling.textContent?.includes('mistakes') ||
+						this.usageLine.nextElementSibling.matches?.(CC.DOM.MODEL_SELECTOR_DROPDOWN) ||
+						!!this.usageLine.nextElementSibling.querySelector?.(CC.DOM.MODEL_SELECTOR_DROPDOWN)
+					))
+				);
+				if (!document.contains(this.usageLine) || wrongLocation) {
+					this.attachUsageLine();
+				}
+			}
+			if (this.headerContainer && !document.contains(this.headerContainer)) {
+				this.attachHeader();
+			}
+
 			// Cache countdown
 			const now = Date.now();
 			if (this.lastCachedUntilMs && this.lastCachedUntilMs > now) {

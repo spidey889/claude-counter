@@ -244,7 +244,7 @@
 
 		// Attach usage line and header independently - they have different anchor elements
 		// and the header anchor doesn't exist on home/new pages
-		waitForElement(CC.DOM.CHAT_INPUT, 60000).then((el) => {
+		waitForElement(`${CC.DOM.CHAT_INPUT}, ${CC.DOM.CHAT_COMPOSER}`, 60000).then((el) => {
 			if (el) ui.attachUsageLine();
 			else CC.warnOnce?.('anchor:composer', `Usage row not attached: nothing matched ${CC.DOM.CHAT_INPUT}`);
 		});

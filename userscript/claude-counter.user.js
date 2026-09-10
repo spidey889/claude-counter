@@ -151,8 +151,8 @@
 		// We match all candidates in order of preference, including legacy fallbacks.
 		CHAT_HEADER_ANCHOR: '[data-testid="chat-title-split"], [data-testid="chat-title-button"], [data-testid="conversation-title"], [data-testid="chat-menu-trigger"], header [data-testid*="title"], header h1',
 		CHAT_HEADER: '[data-testid="chat-header"], header',
-		CHAT_INPUT: '[data-testid="chat-input"], div[contenteditable="true"], textarea',
-		CHAT_COMPOSER: '[data-cds="ChatComposer"], .bg-surface-3, fieldset, form',
+		CHAT_INPUT: '[data-testid="chat-input"], div[contenteditable="true"], div[contenteditable], [contenteditable], [role="textbox"], textarea',
+		CHAT_COMPOSER: '[data-cds="ChatComposer"], [class*="composer"], .bg-surface-3, fieldset, form',
 		MODEL_SELECTOR_DROPDOWN: '[data-testid="model-selector-dropdown"], button[aria-haspopup="menu"][data-testid*="model"], [data-testid*="model-picker"]',
 		CHAT_MENU_TRIGGER: '[data-testid="chat-title-split"], [data-testid="chat-title-button"], [data-testid="conversation-title"], [data-testid="chat-menu-trigger"]',
 		CHAT_PROJECT_WRAPPER: '.chat-project-wrapper',
@@ -176,12 +176,12 @@
 		BOLD_DARK: '#faf9f5'
 	});
 
-	// Diagnostic warnings so future DOM changes leave breadcrumbs in the console
+	// Diagnostic warnings so future DOM changes leave breadcrumbs in the console without triggering Chrome extension error badges
 	const warnedKeys = new Set();
 	CC.warnOnce = (key, message) => {
 		if (warnedKeys.has(key)) return;
 		warnedKeys.add(key);
-		console.warn(`[Claude Counter] ${message}`);
+		console.debug(`[Claude Counter] ${message}`);
 	};
 })();
 
@@ -608,9 +608,9 @@
 		}
 
 		_observeDom() {
-			// Track pending reattach attempts independently
-			let usageReattachPending = false;
-			let headerReattachPending = false;
+			// Schedule reattach on next animation frame without blocking or dropping intermediate DOM mutations
+			let usageReattachScheduled = false;
+			let headerReattachScheduled = false;
 
 			this.domObserver = new MutationObserver(() => {
 				const hasMsgs = this.hasMessages();
@@ -625,19 +625,19 @@
 				const usageMissing = (this.usageLine && !document.contains(this.usageLine)) || usageWrongLocation;
 				const headerMissing = !document.contains(this.headerContainer);
 
-				if (usageMissing && !usageReattachPending) {
-					usageReattachPending = true;
-					CC.waitForElement(CC.DOM.CHAT_INPUT, 10000).then((el) => {
-						usageReattachPending = false;
-						if (el) this.attachUsageLine();
+				if (usageMissing && !usageReattachScheduled) {
+					usageReattachScheduled = true;
+					requestAnimationFrame(() => {
+						usageReattachScheduled = false;
+						this.attachUsageLine();
 					});
 				}
 
-				if (headerMissing && !headerReattachPending) {
-					headerReattachPending = true;
-					CC.waitForElement(CC.DOM.CHAT_HEADER_ANCHOR, 10000).then((el) => {
-						headerReattachPending = false;
-						if (el) this.attachHeader();
+				if (headerMissing && !headerReattachScheduled) {
+					headerReattachScheduled = true;
+					requestAnimationFrame(() => {
+						headerReattachScheduled = false;
+						this.attachHeader();
 					});
 				}
 			});
@@ -965,8 +965,6 @@
 					return;
 				}
 			}
-
-			CC.warnOnce?.('anchor:composer', 'Usage row not attached: no valid composer container or input found');
 		}
 
 		setPendingCache(pending) {
@@ -1151,6 +1149,25 @@
 		}
 
 		tick() {
+			// Heartbeat safety check: guarantee usageLine and header stay attached across message sending and streaming
+			if (this.usageLine) {
+				const hasMsgs = this.hasMessages();
+				const wrongLocation = hasMsgs && (
+					this.usageLine.classList.contains('cc-usageRow--inComposer') ||
+					(this.usageLine.nextElementSibling && (
+						this.usageLine.nextElementSibling.textContent?.includes('mistakes') ||
+						this.usageLine.nextElementSibling.matches?.(CC.DOM.MODEL_SELECTOR_DROPDOWN) ||
+						!!this.usageLine.nextElementSibling.querySelector?.(CC.DOM.MODEL_SELECTOR_DROPDOWN)
+					))
+				);
+				if (!document.contains(this.usageLine) || wrongLocation) {
+					this.attachUsageLine();
+				}
+			}
+			if (this.headerContainer && !document.contains(this.headerContainer)) {
+				this.attachHeader();
+			}
+
 			// Cache countdown
 			const now = Date.now();
 			if (this.lastCachedUntilMs && this.lastCachedUntilMs > now) {
@@ -1434,7 +1451,7 @@
 
 		// Attach usage line and header independently - they have different anchor elements
 		// and the header anchor doesn't exist on home/new pages
-		waitForElement(CC.DOM.CHAT_INPUT, 60000).then((el) => {
+		waitForElement(`${CC.DOM.CHAT_INPUT}, ${CC.DOM.CHAT_COMPOSER}`, 60000).then((el) => {
 			if (el) ui.attachUsageLine();
 			else CC.warnOnce?.('anchor:composer', `Usage row not attached: nothing matched ${CC.DOM.CHAT_INPUT}`);
 		});
