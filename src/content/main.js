@@ -12,13 +12,19 @@
 
 	function getOrgIdFromCookie() {
 		try {
-			return document.cookie
+			const fromCookie = document.cookie
 				.split('; ')
 				.find((row) => row.startsWith('lastActiveOrg='))
-				?.split('=')[1] || null;
-		} catch {
-			return null;
-		}
+				?.split('=')[1];
+			if (fromCookie) return fromCookie;
+		} catch {}
+
+		try {
+			const lsOrg = localStorage.getItem('lastActiveOrg') || localStorage.getItem('currentOrganizationId');
+			if (lsOrg) return lsOrg;
+		} catch {}
+
+		return null;
 	}
 
 	/**
@@ -45,7 +51,18 @@
 				}
 			});
 
-			observer.observe(document.body, { childList: true, subtree: true });
+			const startObserving = () => {
+				const target = document.body || document.documentElement;
+				if (target) {
+					observer.observe(target, { childList: true, subtree: true });
+				}
+			};
+
+			if (document.body || document.documentElement) {
+				startObserving();
+			} else {
+				window.addEventListener('DOMContentLoaded', startObserving, { once: true });
+			}
 
 			if (timeoutMs) {
 				timeoutId = setTimeout(() => {
@@ -221,26 +238,33 @@
 	async function handleUrlChange() {
 		currentConversationId = getConversationId();
 
+		// Attach immediately if elements are already in the DOM
+		ui.attachUsageLine();
+		ui.attachHeader();
+
 		// Attach usage line and header independently - they have different anchor elements
-		// and CHAT_MENU_TRIGGER doesn't exist on home/new pages
-		waitForElement(CC.DOM.MODEL_SELECTOR_DROPDOWN, 60000).then((el) => {
+		// and the header anchor doesn't exist on home/new pages
+		waitForElement(CC.DOM.CHAT_INPUT, 60000).then((el) => {
 			if (el) ui.attachUsageLine();
+			else CC.warnOnce?.('anchor:composer', `Usage row not attached: nothing matched ${CC.DOM.CHAT_INPUT}`);
 		});
-		waitForElement(CC.DOM.CHAT_MENU_TRIGGER, 60000).then((el) => {
+		waitForElement(CC.DOM.CHAT_HEADER_ANCHOR, 60000).then((el) => {
 			if (el) ui.attachHeader();
+			else if (currentConversationId) {
+				CC.warnOnce?.('anchor:header', `Token counter not attached: nothing matched ${CC.DOM.CHAT_HEADER_ANCHOR}`);
+			}
 		});
 
-		if (!currentConversationId) {
-			ui.setConversationMetrics();
-			return;
-		}
-
-		// Best-effort orgId from cookie.
+		// Best-effort orgId from cookie or local storage
 		updateOrgIdIfNeeded(getOrgIdFromCookie());
 
-		await refreshConversation();
+		if (currentConversationId) {
+			await refreshConversation();
+		} else {
+			ui.setConversationMetrics();
+		}
 
-		// Usage is org-level, not conversation-level. Only fetch on first load or if stale.
+		// Usage is org-level, not conversation-level. Ensure it loads on home and /new as well.
 		if (!usageState) await refreshUsage();
 	}
 

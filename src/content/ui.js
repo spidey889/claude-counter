@@ -92,7 +92,12 @@
 		const tip = document.createElement('div');
 		tip.className = 'bg-bg-500 text-text-000 cc-tooltip';
 		tip.textContent = text;
-		document.body.appendChild(tip);
+		const target = document.body || document.documentElement;
+		if (target) {
+			target.appendChild(tip);
+		} else {
+			window.addEventListener('DOMContentLoaded', () => (document.body || document.documentElement)?.appendChild(tip), { once: true });
+		}
 		return tip;
 	}
 
@@ -199,7 +204,7 @@
 
 				if (usageMissing && !usageReattachPending) {
 					usageReattachPending = true;
-					CC.waitForElement(CC.DOM.MODEL_SELECTOR_DROPDOWN, 60000).then((el) => {
+					CC.waitForElement(CC.DOM.CHAT_INPUT, 10000).then((el) => {
 						usageReattachPending = false;
 						if (el) this.attachUsageLine();
 					});
@@ -207,13 +212,25 @@
 
 				if (headerMissing && !headerReattachPending) {
 					headerReattachPending = true;
-					CC.waitForElement(CC.DOM.CHAT_MENU_TRIGGER, 60000).then((el) => {
+					CC.waitForElement(CC.DOM.CHAT_HEADER_ANCHOR, 10000).then((el) => {
 						headerReattachPending = false;
 						if (el) this.attachHeader();
 					});
 				}
 			});
-			this.domObserver.observe(document.body, { childList: true, subtree: true });
+
+			const startObserving = () => {
+				const target = document.body || document.documentElement;
+				if (target) {
+					this.domObserver.observe(target, { childList: true, subtree: true });
+				}
+			};
+
+			if (document.body || document.documentElement) {
+				startObserving();
+			} else {
+				window.addEventListener('DOMContentLoaded', startObserving, { once: true });
+			}
 		}
 
 		_initUsageLine() {
@@ -311,10 +328,38 @@
 		}
 
 		attachHeader() {
-			const chatMenu = document.querySelector(CC.DOM.CHAT_MENU_TRIGGER);
-			if (!chatMenu) return;
-			const anchor = chatMenu.closest(CC.DOM.CHAT_PROJECT_WRAPPER) || chatMenu.parentElement;
-			if (!anchor) return;
+			const trigger = document.querySelector(CC.DOM.CHAT_HEADER_ANCHOR);
+			if (!trigger) return;
+
+			// In modern Claude, the header bar is [data-testid="chat-header"] or a <header> tag
+			const headerBar = trigger.closest(CC.DOM.CHAT_HEADER);
+			let anchor = trigger.closest(CC.DOM.CHAT_PROJECT_WRAPPER);
+
+			if (!anchor && headerBar) {
+				// Climb to the title block's outermost wrapper so the counter becomes a
+				// sibling in the header bar's flex row, not cramped inside a truncating title wrapper.
+				anchor = trigger;
+				while (anchor.parentElement && anchor.parentElement !== headerBar) {
+					anchor = anchor.parentElement;
+				}
+			}
+
+			if (!anchor) {
+				const testId = trigger.getAttribute?.('data-testid');
+				if (testId === 'chat-title-split' || testId === 'chat-title-button' || testId === 'conversation-title') {
+					anchor = trigger;
+				} else {
+					anchor = trigger.parentElement;
+				}
+			}
+
+			if (!anchor || anchor === this.headerContainer) {
+				CC.warnOnce?.('anchor:header-bar', 'Token counter not attached: no usable anchor beside the chat title');
+				return;
+			}
+
+			this.headerContainer.classList.toggle('cc-header--inHeaderBar', !!headerBar && anchor.parentElement === headerBar);
+
 			if (anchor.nextElementSibling !== this.headerContainer) {
 				anchor.after(this.headerContainer);
 			}
@@ -324,35 +369,106 @@
 
 		attachUsageLine() {
 			if (!this.usageLine) return;
-			const modelSelector = document.querySelector(CC.DOM.MODEL_SELECTOR_DROPDOWN);
-			if (!modelSelector) return;
-			const gridContainer = modelSelector.closest('[data-testid="chat-input-grid-container"]');
-			const gridArea = modelSelector.closest('[data-testid="chat-input-grid-area"]');
-			const findToolbarRow = (el, stopAt) => {
-				let cur = el;
-				while (cur && cur !== document.body) {
-					if (stopAt && cur === stopAt) break;
-					if (cur !== el && cur.nodeType === 1) {
-						const style = window.getComputedStyle(cur);
-						if (style.display === 'flex' && style.flexDirection === 'row') {
-							const buttons = cur.querySelectorAll('button').length;
-							if (buttons > 1) return cur;
-						}
-					}
-					cur = cur.parentElement;
-				}
-				return null;
+
+			// Helper: reject out-of-flow (absolute/fixed) containers to prevent overlapping buttons
+			const isOutOfFlow = (el) => {
+				const pos = window.getComputedStyle(el).position;
+				return pos === 'absolute' || pos === 'fixed';
 			};
 
-			const toolbarRow =
-				(gridContainer ? findToolbarRow(modelSelector, gridArea || gridContainer) : null) ||
-				findToolbarRow(modelSelector) ||
-				modelSelector.parentElement?.parentElement?.parentElement;
-			if (!toolbarRow) return;
-			if (toolbarRow.nextElementSibling !== this.usageLine) {
-				toolbarRow.after(this.usageLine);
+			// Tier 1: Modern composer layout (anchoring to chat input or composer card)
+			const chatInput = document.querySelector(CC.DOM.CHAT_INPUT);
+			if (chatInput) {
+				// Check for flow child wrapper right under composer card (e.g. .bg-surface-3 > .relative.w-full)
+				const composerFlowChild = chatInput.closest('.bg-surface-3 > .relative.w-full.min-w-0') ||
+				                          chatInput.closest('.relative.w-full.min-w-0');
+				if (composerFlowChild && composerFlowChild.parentElement && !isOutOfFlow(composerFlowChild)) {
+					if (composerFlowChild.nextElementSibling !== this.usageLine) {
+						composerFlowChild.after(this.usageLine);
+					}
+					this.usageLine.classList.add('cc-usageRow--inComposer');
+					this.refreshProgressChrome();
+					return;
+				}
+
+				// Check for composer card container ([data-cds="ChatComposer"], .bg-surface-3, fieldset, form)
+				const composerCard = chatInput.closest(CC.DOM.CHAT_COMPOSER);
+				if (composerCard) {
+					// Mount inside the visual card (e.g. .bg-surface-3 or first element child)
+					const targetBox = composerCard.querySelector(':scope > .bg-surface-3') ||
+					                  (composerCard.classList.contains('bg-surface-3') ? composerCard : null) ||
+					                  composerCard.firstElementChild ||
+					                  composerCard;
+					if (targetBox && targetBox.lastElementChild !== this.usageLine) {
+						targetBox.appendChild(this.usageLine);
+					}
+					this.usageLine.classList.add('cc-usageRow--inComposer');
+					this.refreshProgressChrome();
+					return;
+				}
 			}
-			this.refreshProgressChrome();
+
+			// Tier 2: Model selector dropdown fallback
+			const modelSelector = document.querySelector(CC.DOM.MODEL_SELECTOR_DROPDOWN);
+			if (modelSelector) {
+				// Check if model selector itself is inside a composer card
+				const composerCard = modelSelector.closest(CC.DOM.CHAT_COMPOSER);
+				if (composerCard) {
+					const targetBox = composerCard.querySelector(':scope > .bg-surface-3') ||
+					                  (composerCard.classList.contains('bg-surface-3') ? composerCard : null) ||
+					                  composerCard.firstElementChild ||
+					                  composerCard;
+					if (targetBox && targetBox.lastElementChild !== this.usageLine) {
+						targetBox.appendChild(this.usageLine);
+					}
+					this.usageLine.classList.add('cc-usageRow--inComposer');
+					this.refreshProgressChrome();
+					return;
+				}
+
+				// Check for in-flow toolbar row
+				const gridContainer = modelSelector.closest('[data-testid="chat-input-grid-container"]');
+				const gridArea = modelSelector.closest('[data-testid="chat-input-grid-area"]');
+				const findToolbarRow = (el, stopAt) => {
+					let cur = el;
+					while (cur && cur !== document.body) {
+						if (stopAt && cur === stopAt) break;
+						if (cur !== el && cur.nodeType === 1 && !isOutOfFlow(cur)) {
+							const style = window.getComputedStyle(cur);
+							if (style.display === 'flex' && style.flexDirection === 'row') {
+								const buttons = cur.querySelectorAll('button').length;
+								if (buttons > 1) return cur;
+							}
+						}
+						cur = cur.parentElement;
+					}
+					return null;
+				};
+
+				const toolbarRow =
+					(gridContainer ? findToolbarRow(modelSelector, gridArea || gridContainer) : null) ||
+					findToolbarRow(modelSelector);
+
+				if (toolbarRow && toolbarRow.nextElementSibling !== this.usageLine) {
+					this.usageLine.classList.remove('cc-usageRow--inComposer');
+					toolbarRow.after(this.usageLine);
+					this.refreshProgressChrome();
+					return;
+				}
+			}
+
+			// Tier 3: Last-resort fallback to chat input's parent column
+			if (chatInput && chatInput.parentElement) {
+				const parent = chatInput.closest('.flex-col') || chatInput.parentElement;
+				if (parent && parent.lastElementChild !== this.usageLine) {
+					this.usageLine.classList.add('cc-usageRow--inComposer');
+					parent.appendChild(this.usageLine);
+					this.refreshProgressChrome();
+					return;
+				}
+			}
+
+			CC.warnOnce?.('anchor:composer', 'Usage row not attached: no valid composer container or input found');
 		}
 
 		setPendingCache(pending) {

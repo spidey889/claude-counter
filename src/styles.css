@@ -4,6 +4,11 @@
 	user-select: none;
 }
 
+.cc-header--inHeaderBar {
+	margin-top: 0;
+	flex-shrink: 0;
+}
+
 .cc-headerItem {
 	white-space: nowrap;
 }
@@ -15,6 +20,11 @@
 	cursor: pointer;
 	user-select: none;
 	transition: opacity 150ms ease;
+}
+
+.cc-usageRow--inComposer {
+	padding: 2px 12px 6px 12px;
+	margin-top: 2px;
 }
 
 .cc-usageRow--dim {
