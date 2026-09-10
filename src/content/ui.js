@@ -211,7 +211,14 @@
 
 			this.domObserver = new MutationObserver(() => {
 				const hasMsgs = this.hasMessages();
-				const usageWrongLocation = hasMsgs && this.usageLine?.classList.contains('cc-usageRow--inComposer');
+				const usageWrongLocation = hasMsgs && (
+					this.usageLine?.classList.contains('cc-usageRow--inComposer') ||
+					(this.usageLine?.nextElementSibling && (
+						this.usageLine.nextElementSibling.textContent?.includes('mistakes') ||
+						this.usageLine.nextElementSibling.matches?.(CC.DOM.MODEL_SELECTOR_DROPDOWN) ||
+						!!this.usageLine.nextElementSibling.querySelector?.(CC.DOM.MODEL_SELECTOR_DROPDOWN)
+					))
+				);
 				const usageMissing = (this.usageLine && !document.contains(this.usageLine)) || usageWrongLocation;
 				const headerMissing = !document.contains(this.headerContainer);
 
@@ -413,13 +420,48 @@
 					));
 
 				if (card && card.parentElement) {
-					if (card.nextElementSibling !== this.usageLine) {
-						card.after(this.usageLine);
+					// Find the native disclaimer / model-selector row ("chin") below the composer card
+					const modelSelector = document.querySelector(CC.DOM.MODEL_SELECTOR_DROPDOWN);
+					let disclaimerRow = null;
+
+					// 1. If model selector is in the chin row outside the card
+					if (modelSelector && !card.contains(modelSelector)) {
+						let cur = modelSelector;
+						while (cur && cur.parentElement && cur.parentElement !== card.parentElement && cur.parentElement !== document.body) {
+							cur = cur.parentElement;
+						}
+						if (cur && cur.parentElement === card.parentElement && cur !== card && cur !== this.usageLine) {
+							disclaimerRow = cur;
+						}
 					}
-					this.usageLine.classList.remove('cc-usageRow--inComposer');
-					this.usageLine.classList.add('cc-usageRow--belowComposer');
-					this.refreshProgressChrome();
-					return;
+
+					// 2. If not found via model selector, check card's next siblings in composer container
+					if (!disclaimerRow) {
+						let sibling = card.nextElementSibling;
+						while (sibling) {
+							if (sibling !== this.usageLine) {
+								const text = sibling.textContent || '';
+								if (text.includes('mistakes') || text.includes('Claude') || sibling.querySelector('button')) {
+									disclaimerRow = sibling;
+									break;
+								}
+							}
+							sibling = sibling.nextElementSibling;
+						}
+					}
+
+					// Anchor below the native disclaimer row (further down, last element),
+					// or below the card if no disclaimer row exists
+					const anchorTarget = disclaimerRow || card;
+					if (anchorTarget && anchorTarget.parentElement) {
+						if (anchorTarget.nextElementSibling !== this.usageLine) {
+							anchorTarget.after(this.usageLine);
+						}
+						this.usageLine.classList.remove('cc-usageRow--inComposer');
+						this.usageLine.classList.add('cc-usageRow--belowComposer');
+						this.refreshProgressChrome();
+						return;
+					}
 				}
 			}
 
