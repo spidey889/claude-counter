@@ -12,16 +12,41 @@
 
 	function getOrgIdFromCookie() {
 		try {
-			const fromCookie = document.cookie
-				.split('; ')
-				.find((row) => row.startsWith('lastActiveOrg='))
-				?.split('=')[1];
-			if (fromCookie) return fromCookie;
+			const cookies = document.cookie.split(';');
+			for (const c of cookies) {
+				const [name, ...valParts] = c.trim().split('=');
+				if (name === 'lastActiveOrg') {
+					const val = decodeURIComponent(valParts.join('=')).replace(/^["']|["']$/g, '').trim();
+					if (val) return val;
+				}
+			}
 		} catch {}
 
 		try {
-			const lsOrg = localStorage.getItem('lastActiveOrg') || localStorage.getItem('currentOrganizationId');
-			if (lsOrg) return lsOrg;
+			for (const key of ['lastActiveOrg', 'currentOrganizationId', 'recentOrgId']) {
+				const val = localStorage.getItem(key);
+				if (val) {
+					const cleaned = val.replace(/^["']|["']$/g, '').trim();
+					if (cleaned) return cleaned;
+				}
+			}
+		} catch {}
+
+		try {
+			const nextDataEl = document.getElementById('__NEXT_DATA__');
+			if (nextDataEl) {
+				const data = JSON.parse(nextDataEl.textContent);
+				const orgId = data?.props?.pageProps?.organizationId ||
+				              data?.props?.pageProps?.org?.id ||
+				              data?.query?.orgId;
+				if (orgId) return String(orgId).replace(/^["']|["']$/g, '').trim();
+			}
+		} catch {}
+
+		try {
+			const html = document.documentElement.innerHTML.slice(0, 50000);
+			const match = html.match(/\/api\/organizations\/([0-9a-fA-F-]{36})\//);
+			if (match) return match[1];
 		} catch {}
 
 		return null;
@@ -152,6 +177,17 @@
 	});
 	ui.initialize();
 
+	// Immediately restore cached usage state so bars render on frame 0 of page load/refresh
+	try {
+		const cached = localStorage.getItem('cc_last_usage_state');
+		if (cached) {
+			const parsed = JSON.parse(cached);
+			if (parsed?.five_hour || parsed?.seven_day) {
+				applyUsageUpdate(parsed, 'cache');
+			}
+		}
+	} catch {}
+
 	// Bridge must be ready before we can make requests
 	const bridgeReady = CC.injectBridgeOnce();
 
@@ -165,6 +201,11 @@
 		usageResetMs.five_hour = normalized.five_hour?.resets_at ? Date.parse(normalized.five_hour.resets_at) : null;
 		usageResetMs.seven_day = normalized.seven_day?.resets_at ? Date.parse(normalized.seven_day.resets_at) : null;
 		ui.setUsage(normalized);
+		if (source !== 'cache') {
+			try {
+				localStorage.setItem('cc_last_usage_state', JSON.stringify(normalized));
+			} catch {}
+		}
 	}
 
 	function updateOrgIdIfNeeded(newOrgId) {
@@ -175,9 +216,8 @@
 
 	async function refreshUsage() {
 		await bridgeReady;
-		const orgId = currentOrgId || getOrgIdFromCookie();
-		if (!orgId) return;
-		updateOrgIdIfNeeded(orgId);
+		let orgId = currentOrgId || getOrgIdFromCookie();
+		if (orgId) updateOrgIdIfNeeded(orgId);
 
 		if (usageFetchInFlight) return;
 		usageFetchInFlight = true;
@@ -234,6 +274,7 @@
 	CC.bridge.on('cc:generation_start', handleGenerationStart);
 	CC.bridge.on('cc:conversation', handleConversationPayload);
 	CC.bridge.on('cc:message_limit', handleMessageLimit);
+	CC.bridge.on('cc:org_id', ({ orgId }) => updateOrgIdIfNeeded(orgId));
 
 	async function handleUrlChange() {
 		currentConversationId = getConversationId();
@@ -264,8 +305,8 @@
 			ui.setConversationMetrics();
 		}
 
-		// Usage is org-level, not conversation-level. Ensure it loads on home and /new as well.
-		if (!usageState) await refreshUsage();
+		// Usage is org-level, not conversation-level. Refresh in background on every page load/refresh.
+		refreshUsage();
 	}
 
 	const unobserveUrl = observeUrlChanges(handleUrlChange);

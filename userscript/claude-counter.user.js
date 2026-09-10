@@ -868,9 +868,9 @@
 						this.usageLine.classList.remove('cc-usageRow--inComposer');
 						this.usageLine.classList.add('cc-usageRow--belowComposer');
 						this.usageLine.style.setProperty('position', 'relative', 'important');
-						this.usageLine.style.setProperty('top', '-6px', 'important');
-						this.usageLine.style.setProperty('margin-top', '-6px', 'important');
-						this.usageLine.style.setProperty('margin-bottom', '14px', 'important');
+						this.usageLine.style.setProperty('top', '-3px', 'important');
+						this.usageLine.style.setProperty('margin-top', '-3px', 'important');
+						this.usageLine.style.setProperty('margin-bottom', '11px', 'important');
 						this.refreshProgressChrome();
 						return;
 					}
@@ -1227,7 +1227,7 @@
 	CC.__ccUserscriptStarted = true;
 
 	const STYLE_ID = 'cc-userscript-styles';
-	const STYLES = '/* Header: tokens + cache timer */\n.cc-header {\n\tmargin-top: 2px;\n\tuser-select: none;\n}\n\n.cc-header--inHeaderBar {\n\tmargin-top: 0;\n\tflex-shrink: 0;\n}\n\n.cc-headerItem {\n\twhite-space: nowrap;\n}\n\n/* Usage row: session + weekly */\n.cc-usageRow {\n\tposition: relative;\n\tz-index: 50;\n\tcursor: pointer;\n\tuser-select: none;\n\ttransition: opacity 150ms ease;\n}\n\n.cc-usageRow--inComposer {\n\tpadding: 2px 12px 6px 12px;\n\tmargin-top: 2px;\n}\n\n.cc-usageRow--belowComposer {\n\tposition: relative !important;\n\ttop: -6px !important;\n\tmargin-top: -6px !important;\n\tmargin-bottom: 14px !important;\n\tpadding-left: 8px !important;\n\tpadding-right: 8px !important;\n}\n\n.cc-usageRow--dim {\n\topacity: 0.6;\n}\n\n.cc-usageGroup {\n\tdisplay: flex;\n\talign-items: center;\n\tgap: 8px;\n\tflex: 1;\n\tmin-width: 0;\n}\n\n.cc-usageGroup--single {\n\twidth: 100%;\n}\n\n.cc-usageGroup--weekly {\n\tjustify-content: flex-end;\n}\n\n.cc-usageText {\n\twhite-space: nowrap;\n}\n\n/* Bars (mini + usage) */\n.cc-bar {\n\t--cc-radius: 3px;\n\t--cc-stroke: transparent;\n\t--cc-fill: transparent;\n\t--cc-fill-warn: var(--cc-fill);\n\t--cc-marker: transparent;\n\n\tposition: relative;\n\tbox-sizing: border-box;\n\twidth: 100%;\n\theight: 6px;\n\tborder-radius: var(--cc-radius);\n\tborder: 1px solid var(--cc-stroke);\n\toverflow: visible;\n\tuser-select: none;\n}\n\n.cc-bar__fill {\n\twidth: 0%;\n\theight: 100%;\n\tbackground: var(--cc-fill);\n\ttransition: width 300ms ease, background-color 300ms ease;\n\tborder-top-left-radius: max(0px, calc(var(--cc-radius) - 1px));\n\tborder-bottom-left-radius: max(0px, calc(var(--cc-radius) - 1px));\n\tborder-top-right-radius: 0;\n\tborder-bottom-right-radius: 0;\n}\n\n.cc-bar__fill.cc-full {\n\tborder-top-right-radius: max(0px, calc(var(--cc-radius) - 1px));\n\tborder-bottom-right-radius: max(0px, calc(var(--cc-radius) - 1px));\n}\n\n.cc-bar__fill.cc-warn {\n\tbackground: var(--cc-fill-warn);\n}\n\n.cc-bar__marker {\n\tposition: absolute;\n\ttop: 0;\n\tbottom: 0;\n\tleft: 0%;\n\twidth: 2px;\n\tbackground: var(--cc-marker);\n\tpointer-events: none;\n}\n\n.cc-bar--mini {\n\twidth: 60px;\n\theight: 7px;\n\t--cc-radius: 2px;\n}\n\n.cc-bar--usage {\n\theight: 10px;\n\tflex: 1;\n}\n\n/* Tooltips */\n.cc-tooltip {\n\tposition: fixed;\n\tz-index: 9999;\n\tpadding: 4px 8px;\n\tborder-radius: 4px;\n\tfont-size: 12px;\n\twhite-space: pre-line;\n\tuser-select: none;\n\tpointer-events: none;\n\topacity: 0;\n\ttransition: opacity 200ms ease;\n}\n\n.cc-tooltipTrigger {\n\t-webkit-touch-callout: none;\n\t-webkit-user-select: none;\n\tuser-select: none;\n\tcursor: help;\n}\n\n/* Hide optional elements completely (no layout space) */\n.cc-hidden {\n\tdisplay: none !important;\n}\n';
+	const STYLES = '/* Header: tokens + cache timer */\n.cc-header {\n\tmargin-top: 2px;\n\tuser-select: none;\n}\n\n.cc-header--inHeaderBar {\n\tmargin-top: 0;\n\tflex-shrink: 0;\n}\n\n.cc-headerItem {\n\twhite-space: nowrap;\n}\n\n/* Usage row: session + weekly */\n.cc-usageRow {\n\tposition: relative;\n\tz-index: 50;\n\tcursor: pointer;\n\tuser-select: none;\n\ttransition: opacity 150ms ease;\n}\n\n.cc-usageRow--inComposer {\n\tpadding: 2px 12px 6px 12px;\n\tmargin-top: 2px;\n}\n\n.cc-usageRow--belowComposer {\n\tposition: relative !important;\n\ttop: -3px !important;\n\tmargin-top: -3px !important;\n\tmargin-bottom: 11px !important;\n\tpadding-left: 8px !important;\n\tpadding-right: 8px !important;\n}\n\n.cc-usageRow--dim {\n\topacity: 0.6;\n}\n\n.cc-usageGroup {\n\tdisplay: flex;\n\talign-items: center;\n\tgap: 8px;\n\tflex: 1;\n\tmin-width: 0;\n}\n\n.cc-usageGroup--single {\n\twidth: 100%;\n}\n\n.cc-usageGroup--weekly {\n\tjustify-content: flex-end;\n}\n\n.cc-usageText {\n\twhite-space: nowrap;\n}\n\n/* Bars (mini + usage) */\n.cc-bar {\n\t--cc-radius: 3px;\n\t--cc-stroke: transparent;\n\t--cc-fill: transparent;\n\t--cc-fill-warn: var(--cc-fill);\n\t--cc-marker: transparent;\n\n\tposition: relative;\n\tbox-sizing: border-box;\n\twidth: 100%;\n\theight: 6px;\n\tborder-radius: var(--cc-radius);\n\tborder: 1px solid var(--cc-stroke);\n\toverflow: visible;\n\tuser-select: none;\n}\n\n.cc-bar__fill {\n\twidth: 0%;\n\theight: 100%;\n\tbackground: var(--cc-fill);\n\ttransition: width 300ms ease, background-color 300ms ease;\n\tborder-top-left-radius: max(0px, calc(var(--cc-radius) - 1px));\n\tborder-bottom-left-radius: max(0px, calc(var(--cc-radius) - 1px));\n\tborder-top-right-radius: 0;\n\tborder-bottom-right-radius: 0;\n}\n\n.cc-bar__fill.cc-full {\n\tborder-top-right-radius: max(0px, calc(var(--cc-radius) - 1px));\n\tborder-bottom-right-radius: max(0px, calc(var(--cc-radius) - 1px));\n}\n\n.cc-bar__fill.cc-warn {\n\tbackground: var(--cc-fill-warn);\n}\n\n.cc-bar__marker {\n\tposition: absolute;\n\ttop: 0;\n\tbottom: 0;\n\tleft: 0%;\n\twidth: 2px;\n\tbackground: var(--cc-marker);\n\tpointer-events: none;\n}\n\n.cc-bar--mini {\n\twidth: 60px;\n\theight: 7px;\n\t--cc-radius: 2px;\n}\n\n.cc-bar--usage {\n\theight: 10px;\n\tflex: 1;\n}\n\n/* Tooltips */\n.cc-tooltip {\n\tposition: fixed;\n\tz-index: 9999;\n\tpadding: 4px 8px;\n\tborder-radius: 4px;\n\tfont-size: 12px;\n\twhite-space: pre-line;\n\tuser-select: none;\n\tpointer-events: none;\n\topacity: 0;\n\ttransition: opacity 200ms ease;\n}\n\n.cc-tooltipTrigger {\n\t-webkit-touch-callout: none;\n\t-webkit-user-select: none;\n\tuser-select: none;\n\tcursor: help;\n}\n\n/* Hide optional elements completely (no layout space) */\n.cc-hidden {\n\tdisplay: none !important;\n}\n';
 
 	function injectStyles() {
 		if (document.getElementById(STYLE_ID)) return;
@@ -1244,16 +1244,41 @@
 
 	function getOrgIdFromCookie() {
 		try {
-			const fromCookie = document.cookie
-				.split('; ')
-				.find((row) => row.startsWith('lastActiveOrg='))
-				?.split('=')[1];
-			if (fromCookie) return fromCookie;
+			const cookies = document.cookie.split(';');
+			for (const c of cookies) {
+				const [name, ...valParts] = c.trim().split('=');
+				if (name === 'lastActiveOrg') {
+					const val = decodeURIComponent(valParts.join('=')).replace(/^["']|["']$/g, '').trim();
+					if (val) return val;
+				}
+			}
 		} catch {}
 
 		try {
-			const lsOrg = localStorage.getItem('lastActiveOrg') || localStorage.getItem('currentOrganizationId');
-			if (lsOrg) return lsOrg;
+			for (const key of ['lastActiveOrg', 'currentOrganizationId', 'recentOrgId']) {
+				const val = localStorage.getItem(key);
+				if (val) {
+					const cleaned = val.replace(/^["']|["']$/g, '').trim();
+					if (cleaned) return cleaned;
+				}
+			}
+		} catch {}
+
+		try {
+			const nextDataEl = document.getElementById('__NEXT_DATA__');
+			if (nextDataEl) {
+				const data = JSON.parse(nextDataEl.textContent);
+				const orgId = data?.props?.pageProps?.organizationId ||
+				              data?.props?.pageProps?.org?.id ||
+				              data?.query?.orgId;
+				if (orgId) return String(orgId).replace(/^["']|["']$/g, '').trim();
+			}
+		} catch {}
+
+		try {
+			const html = document.documentElement.innerHTML.slice(0, 50000);
+			const match = html.match(/\/api\/organizations\/([0-9a-fA-F-]{36})\//);
+			if (match) return match[1];
 		} catch {}
 
 		return null;
@@ -1366,6 +1391,11 @@
 		usageResetMs.five_hour = normalized.five_hour?.resets_at ? Date.parse(normalized.five_hour.resets_at) : null;
 		usageResetMs.seven_day = normalized.seven_day?.resets_at ? Date.parse(normalized.seven_day.resets_at) : null;
 		ui.setUsage(normalized);
+		if (source !== 'cache') {
+			try {
+				localStorage.setItem('cc_last_usage_state', JSON.stringify(normalized));
+			} catch {}
+		}
 	}
 
 	function updateOrgIdIfNeeded(newOrgId) {
@@ -1376,7 +1406,21 @@
 
 	async function requestUsage(orgId) {
 		if (!originalFetch) return null;
-		const res = await originalFetch(`https://claude.ai/api/organizations/${orgId}/usage`, {
+		let targetOrgId = orgId;
+		if (!targetOrgId) {
+			try {
+				const orgsRes = await originalFetch('https://claude.ai/api/organizations', {
+					method: 'GET',
+					credentials: 'include'
+				});
+				const orgs = await orgsRes.json();
+				const activeOrg = (Array.isArray(orgs) && (orgs.find((o) => o.active) || orgs[0])) || null;
+				targetOrgId = activeOrg?.id;
+				if (targetOrgId) updateOrgIdIfNeeded(targetOrgId);
+			} catch {}
+		}
+		if (!targetOrgId) return null;
+		const res = await originalFetch(`https://claude.ai/api/organizations/${targetOrgId}/usage`, {
 			method: 'GET',
 			credentials: 'include'
 		});
@@ -1395,9 +1439,8 @@
 	}
 
 	async function refreshUsage() {
-		const orgId = currentOrgId || getOrgIdFromCookie();
-		if (!orgId) return;
-		updateOrgIdIfNeeded(orgId);
+		let orgId = currentOrgId || getOrgIdFromCookie();
+		if (orgId) updateOrgIdIfNeeded(orgId);
 
 		if (usageFetchInFlight) return;
 		usageFetchInFlight = true;
@@ -1480,8 +1523,8 @@
 			ui.setConversationMetrics();
 		}
 
-		// Usage is org-level, not conversation-level. Ensure it loads on home and /new as well.
-		if (!usageState) await refreshUsage();
+		// Usage is org-level, not conversation-level. Refresh in background on every page load/refresh.
+		refreshUsage();
 	}
 
 	function tick() {
@@ -1508,6 +1551,18 @@
 	function start() {
 		injectStyles();
 		ui.initialize();
+
+		// Immediately restore cached usage state so bars render on frame 0 of page load/refresh
+		try {
+			const cached = localStorage.getItem('cc_last_usage_state');
+			if (cached) {
+				const parsed = JSON.parse(cached);
+				if (parsed?.five_hour || parsed?.seven_day) {
+					applyUsageUpdate(parsed, 'cache');
+				}
+			}
+		} catch {}
+
 		CC._ccInternal.onGenerationStart = handleGenerationStart;
 		CC._ccInternal.onConversationData = handleConversationPayload;
 		CC._ccInternal.onMessageLimit = handleMessageLimit;

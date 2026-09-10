@@ -149,7 +149,21 @@
 			}
 
 			if (kind === 'usage') {
-				const orgId = payload?.orgId;
+				let orgId = payload?.orgId;
+				if (!orgId) {
+					try {
+						const orgsRes = await originalFetch('https://claude.ai/api/organizations', {
+							method: 'GET',
+							credentials: 'include'
+						});
+						const orgs = await orgsRes.json();
+						const activeOrg = (Array.isArray(orgs) && (orgs.find((o) => o.active) || orgs[0])) || null;
+						orgId = activeOrg?.id;
+						if (orgId) {
+							post('cc:org_id', { orgId });
+						}
+					} catch {}
+				}
 				if (!orgId) throw new Error('Missing orgId');
 				const res = await originalFetch(`https://claude.ai/api/organizations/${orgId}/usage`, {
 					method: 'GET',

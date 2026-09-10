@@ -29,9 +29,9 @@
 
 .cc-usageRow--belowComposer {
 	position: relative !important;
-	top: -6px !important;
-	margin-top: -6px !important;
-	margin-bottom: 14px !important;
+	top: -3px !important;
+	margin-top: -3px !important;
+	margin-bottom: 11px !important;
 	padding-left: 8px !important;
 	padding-right: 8px !important;
 }

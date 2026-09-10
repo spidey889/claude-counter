@@ -465,9 +465,9 @@
 						this.usageLine.classList.remove('cc-usageRow--inComposer');
 						this.usageLine.classList.add('cc-usageRow--belowComposer');
 						this.usageLine.style.setProperty('position', 'relative', 'important');
-						this.usageLine.style.setProperty('top', '-6px', 'important');
-						this.usageLine.style.setProperty('margin-top', '-6px', 'important');
-						this.usageLine.style.setProperty('margin-bottom', '14px', 'important');
+						this.usageLine.style.setProperty('top', '-3px', 'important');
+						this.usageLine.style.setProperty('margin-top', '-3px', 'important');
+						this.usageLine.style.setProperty('margin-bottom', '11px', 'important');
 						this.refreshProgressChrome();
 						return;
 					}
