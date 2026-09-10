@@ -28,10 +28,12 @@
 }
 
 .cc-usageRow--belowComposer {
-	margin-top: -8px;
-	margin-bottom: 2px;
-	padding-left: 8px;
-	padding-right: 8px;
+	position: relative !important;
+	top: -6px !important;
+	margin-top: -6px !important;
+	margin-bottom: 14px !important;
+	padding-left: 8px !important;
+	padding-right: 8px !important;
 }
 
 .cc-usageRow--dim {

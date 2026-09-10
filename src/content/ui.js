@@ -390,6 +390,11 @@
 		attachUsageLine() {
 			if (!this.usageLine) return;
 
+			this.usageLine.style.removeProperty('position');
+			this.usageLine.style.removeProperty('top');
+			this.usageLine.style.removeProperty('margin-top');
+			this.usageLine.style.removeProperty('margin-bottom');
+
 			// Helper: reject out-of-flow (absolute/fixed) containers to prevent overlapping buttons
 			const isOutOfFlow = (el) => {
 				const pos = window.getComputedStyle(el).position;
@@ -459,6 +464,10 @@
 						}
 						this.usageLine.classList.remove('cc-usageRow--inComposer');
 						this.usageLine.classList.add('cc-usageRow--belowComposer');
+						this.usageLine.style.setProperty('position', 'relative', 'important');
+						this.usageLine.style.setProperty('top', '-6px', 'important');
+						this.usageLine.style.setProperty('margin-top', '-6px', 'important');
+						this.usageLine.style.setProperty('margin-bottom', '14px', 'important');
 						this.refreshProgressChrome();
 						return;
 					}
