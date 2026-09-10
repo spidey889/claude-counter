@@ -596,13 +596,26 @@
 			observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-mode'] });
 		}
 
+		hasMessages() {
+			const path = window.location.pathname;
+			if (path.includes('/chat/') && !path.endsWith('/chat/new') && !path.endsWith('/chat/')) {
+				return true;
+			}
+			const msg = document.querySelector(
+				'[data-testid*="user-message"], [data-testid*="chat-message"], [data-testid="user-message"], .font-user-message, .font-claude-message, .font-claude-response, [data-testid*="conversation-turn"], [data-testid*="message-content"]'
+			);
+			return !!msg;
+		}
+
 		_observeDom() {
 			// Track pending reattach attempts independently
 			let usageReattachPending = false;
 			let headerReattachPending = false;
 
 			this.domObserver = new MutationObserver(() => {
-				const usageMissing = this.usageLine && !document.contains(this.usageLine);
+				const hasMsgs = this.hasMessages();
+				const usageWrongLocation = hasMsgs && this.usageLine?.classList.contains('cc-usageRow--inComposer');
+				const usageMissing = (this.usageLine && !document.contains(this.usageLine)) || usageWrongLocation;
 				const headerMissing = !document.contains(this.headerContainer);
 
 				if (usageMissing && !usageReattachPending) {
@@ -779,6 +792,41 @@
 				return pos === 'absolute' || pos === 'fixed';
 			};
 
+			// Active conversation with messages:
+			// Anchor the usage row BELOW the composer card so it never renders inside
+			// or overlaps the message input box and controls.
+			if (this.hasMessages()) {
+				const chatInput = document.querySelector(CC.DOM.CHAT_INPUT);
+				const composer = document.querySelector(CC.DOM.CHAT_COMPOSER);
+
+				const card =
+					(chatInput && (
+						chatInput.closest('.bg-surface-3') ||
+						chatInput.closest('[data-cds="ChatComposer"] > div') ||
+						chatInput.closest('[data-cds="ChatComposer"]')?.firstElementChild ||
+						chatInput.closest('fieldset') ||
+						chatInput.closest('form') ||
+						chatInput.closest('[data-cds="ChatComposer"]')
+					)) ||
+					(composer && (
+						composer.querySelector(':scope > .bg-surface-3') ||
+						(composer.classList.contains('bg-surface-3') ? composer : null) ||
+						composer.firstElementChild ||
+						composer
+					));
+
+				if (card && card.parentElement) {
+					if (card.nextElementSibling !== this.usageLine) {
+						card.after(this.usageLine);
+					}
+					this.usageLine.classList.remove('cc-usageRow--inComposer');
+					this.usageLine.classList.add('cc-usageRow--belowComposer');
+					this.refreshProgressChrome();
+					return;
+				}
+			}
+
+			// Fresh / empty chat behavior (UNTOUCHED)
 			// Tier 1: Modern composer layout (anchoring to chat input or composer card)
 			const chatInput = document.querySelector(CC.DOM.CHAT_INPUT);
 			if (chatInput) {
@@ -789,6 +837,7 @@
 					if (composerFlowChild.nextElementSibling !== this.usageLine) {
 						composerFlowChild.after(this.usageLine);
 					}
+					this.usageLine.classList.remove('cc-usageRow--belowComposer');
 					this.usageLine.classList.add('cc-usageRow--inComposer');
 					this.refreshProgressChrome();
 					return;
@@ -805,6 +854,7 @@
 					if (targetBox && targetBox.lastElementChild !== this.usageLine) {
 						targetBox.appendChild(this.usageLine);
 					}
+					this.usageLine.classList.remove('cc-usageRow--belowComposer');
 					this.usageLine.classList.add('cc-usageRow--inComposer');
 					this.refreshProgressChrome();
 					return;
@@ -824,6 +874,7 @@
 					if (targetBox && targetBox.lastElementChild !== this.usageLine) {
 						targetBox.appendChild(this.usageLine);
 					}
+					this.usageLine.classList.remove('cc-usageRow--belowComposer');
 					this.usageLine.classList.add('cc-usageRow--inComposer');
 					this.refreshProgressChrome();
 					return;
@@ -854,6 +905,7 @@
 
 				if (toolbarRow && toolbarRow.nextElementSibling !== this.usageLine) {
 					this.usageLine.classList.remove('cc-usageRow--inComposer');
+					this.usageLine.classList.remove('cc-usageRow--belowComposer');
 					toolbarRow.after(this.usageLine);
 					this.refreshProgressChrome();
 					return;
@@ -864,6 +916,7 @@
 			if (chatInput && chatInput.parentElement) {
 				const parent = chatInput.closest('.flex-col') || chatInput.parentElement;
 				if (parent && parent.lastElementChild !== this.usageLine) {
+					this.usageLine.classList.remove('cc-usageRow--belowComposer');
 					this.usageLine.classList.add('cc-usageRow--inComposer');
 					parent.appendChild(this.usageLine);
 					this.refreshProgressChrome();
@@ -1106,7 +1159,7 @@
 	CC.__ccUserscriptStarted = true;
 
 	const STYLE_ID = 'cc-userscript-styles';
-	const STYLES = '/* Header: tokens + cache timer */\n.cc-header {\n\tmargin-top: 2px;\n\tuser-select: none;\n}\n\n.cc-header--inHeaderBar {\n\tmargin-top: 0;\n\tflex-shrink: 0;\n}\n\n.cc-headerItem {\n\twhite-space: nowrap;\n}\n\n/* Usage row: session + weekly */\n.cc-usageRow {\n\tposition: relative;\n\tz-index: 50;\n\tcursor: pointer;\n\tuser-select: none;\n\ttransition: opacity 150ms ease;\n}\n\n.cc-usageRow--inComposer {\n\tpadding: 2px 12px 6px 12px;\n\tmargin-top: 2px;\n}\n\n.cc-usageRow--dim {\n\topacity: 0.6;\n}\n\n.cc-usageGroup {\n\tdisplay: flex;\n\talign-items: center;\n\tgap: 8px;\n\tflex: 1;\n\tmin-width: 0;\n}\n\n.cc-usageGroup--single {\n\twidth: 100%;\n}\n\n.cc-usageGroup--weekly {\n\tjustify-content: flex-end;\n}\n\n.cc-usageText {\n\twhite-space: nowrap;\n}\n\n/* Bars (mini + usage) */\n.cc-bar {\n\t--cc-radius: 3px;\n\t--cc-stroke: transparent;\n\t--cc-fill: transparent;\n\t--cc-fill-warn: var(--cc-fill);\n\t--cc-marker: transparent;\n\n\tposition: relative;\n\tbox-sizing: border-box;\n\twidth: 100%;\n\theight: 6px;\n\tborder-radius: var(--cc-radius);\n\tborder: 1px solid var(--cc-stroke);\n\toverflow: visible;\n\tuser-select: none;\n}\n\n.cc-bar__fill {\n\twidth: 0%;\n\theight: 100%;\n\tbackground: var(--cc-fill);\n\ttransition: width 300ms ease, background-color 300ms ease;\n\tborder-top-left-radius: max(0px, calc(var(--cc-radius) - 1px));\n\tborder-bottom-left-radius: max(0px, calc(var(--cc-radius) - 1px));\n\tborder-top-right-radius: 0;\n\tborder-bottom-right-radius: 0;\n}\n\n.cc-bar__fill.cc-full {\n\tborder-top-right-radius: max(0px, calc(var(--cc-radius) - 1px));\n\tborder-bottom-right-radius: max(0px, calc(var(--cc-radius) - 1px));\n}\n\n.cc-bar__fill.cc-warn {\n\tbackground: var(--cc-fill-warn);\n}\n\n.cc-bar__marker {\n\tposition: absolute;\n\ttop: 0;\n\tbottom: 0;\n\tleft: 0%;\n\twidth: 2px;\n\tbackground: var(--cc-marker);\n\tpointer-events: none;\n}\n\n.cc-bar--mini {\n\twidth: 60px;\n\theight: 7px;\n\t--cc-radius: 2px;\n}\n\n.cc-bar--usage {\n\theight: 10px;\n\tflex: 1;\n}\n\n/* Tooltips */\n.cc-tooltip {\n\tposition: fixed;\n\tz-index: 9999;\n\tpadding: 4px 8px;\n\tborder-radius: 4px;\n\tfont-size: 12px;\n\twhite-space: pre-line;\n\tuser-select: none;\n\tpointer-events: none;\n\topacity: 0;\n\ttransition: opacity 200ms ease;\n}\n\n.cc-tooltipTrigger {\n\t-webkit-touch-callout: none;\n\t-webkit-user-select: none;\n\tuser-select: none;\n\tcursor: help;\n}\n\n/* Hide optional elements completely (no layout space) */\n.cc-hidden {\n\tdisplay: none !important;\n}\n';
+	const STYLES = '/* Header: tokens + cache timer */\n.cc-header {\n\tmargin-top: 2px;\n\tuser-select: none;\n}\n\n.cc-header--inHeaderBar {\n\tmargin-top: 0;\n\tflex-shrink: 0;\n}\n\n.cc-headerItem {\n\twhite-space: nowrap;\n}\n\n/* Usage row: session + weekly */\n.cc-usageRow {\n\tposition: relative;\n\tz-index: 50;\n\tcursor: pointer;\n\tuser-select: none;\n\ttransition: opacity 150ms ease;\n}\n\n.cc-usageRow--inComposer {\n\tpadding: 2px 12px 6px 12px;\n\tmargin-top: 2px;\n}\n\n.cc-usageRow--belowComposer {\n\tmargin-top: 6px;\n\tmargin-bottom: 4px;\n\tpadding-left: 8px;\n\tpadding-right: 8px;\n}\n\n.cc-usageRow--dim {\n\topacity: 0.6;\n}\n\n.cc-usageGroup {\n\tdisplay: flex;\n\talign-items: center;\n\tgap: 8px;\n\tflex: 1;\n\tmin-width: 0;\n}\n\n.cc-usageGroup--single {\n\twidth: 100%;\n}\n\n.cc-usageGroup--weekly {\n\tjustify-content: flex-end;\n}\n\n.cc-usageText {\n\twhite-space: nowrap;\n}\n\n/* Bars (mini + usage) */\n.cc-bar {\n\t--cc-radius: 3px;\n\t--cc-stroke: transparent;\n\t--cc-fill: transparent;\n\t--cc-fill-warn: var(--cc-fill);\n\t--cc-marker: transparent;\n\n\tposition: relative;\n\tbox-sizing: border-box;\n\twidth: 100%;\n\theight: 6px;\n\tborder-radius: var(--cc-radius);\n\tborder: 1px solid var(--cc-stroke);\n\toverflow: visible;\n\tuser-select: none;\n}\n\n.cc-bar__fill {\n\twidth: 0%;\n\theight: 100%;\n\tbackground: var(--cc-fill);\n\ttransition: width 300ms ease, background-color 300ms ease;\n\tborder-top-left-radius: max(0px, calc(var(--cc-radius) - 1px));\n\tborder-bottom-left-radius: max(0px, calc(var(--cc-radius) - 1px));\n\tborder-top-right-radius: 0;\n\tborder-bottom-right-radius: 0;\n}\n\n.cc-bar__fill.cc-full {\n\tborder-top-right-radius: max(0px, calc(var(--cc-radius) - 1px));\n\tborder-bottom-right-radius: max(0px, calc(var(--cc-radius) - 1px));\n}\n\n.cc-bar__fill.cc-warn {\n\tbackground: var(--cc-fill-warn);\n}\n\n.cc-bar__marker {\n\tposition: absolute;\n\ttop: 0;\n\tbottom: 0;\n\tleft: 0%;\n\twidth: 2px;\n\tbackground: var(--cc-marker);\n\tpointer-events: none;\n}\n\n.cc-bar--mini {\n\twidth: 60px;\n\theight: 7px;\n\t--cc-radius: 2px;\n}\n\n.cc-bar--usage {\n\theight: 10px;\n\tflex: 1;\n}\n\n/* Tooltips */\n.cc-tooltip {\n\tposition: fixed;\n\tz-index: 9999;\n\tpadding: 4px 8px;\n\tborder-radius: 4px;\n\tfont-size: 12px;\n\twhite-space: pre-line;\n\tuser-select: none;\n\tpointer-events: none;\n\topacity: 0;\n\ttransition: opacity 200ms ease;\n}\n\n.cc-tooltipTrigger {\n\t-webkit-touch-callout: none;\n\t-webkit-user-select: none;\n\tuser-select: none;\n\tcursor: help;\n}\n\n/* Hide optional elements completely (no layout space) */\n.cc-hidden {\n\tdisplay: none !important;\n}\n';
 
 	function injectStyles() {
 		if (document.getElementById(STYLE_ID)) return;

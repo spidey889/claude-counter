@@ -193,13 +193,26 @@
 			observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-mode'] });
 		}
 
+		hasMessages() {
+			const path = window.location.pathname;
+			if (path.includes('/chat/') && !path.endsWith('/chat/new') && !path.endsWith('/chat/')) {
+				return true;
+			}
+			const msg = document.querySelector(
+				'[data-testid*="user-message"], [data-testid*="chat-message"], [data-testid="user-message"], .font-user-message, .font-claude-message, .font-claude-response, [data-testid*="conversation-turn"], [data-testid*="message-content"]'
+			);
+			return !!msg;
+		}
+
 		_observeDom() {
 			// Track pending reattach attempts independently
 			let usageReattachPending = false;
 			let headerReattachPending = false;
 
 			this.domObserver = new MutationObserver(() => {
-				const usageMissing = this.usageLine && !document.contains(this.usageLine);
+				const hasMsgs = this.hasMessages();
+				const usageWrongLocation = hasMsgs && this.usageLine?.classList.contains('cc-usageRow--inComposer');
+				const usageMissing = (this.usageLine && !document.contains(this.usageLine)) || usageWrongLocation;
 				const headerMissing = !document.contains(this.headerContainer);
 
 				if (usageMissing && !usageReattachPending) {
@@ -376,6 +389,41 @@
 				return pos === 'absolute' || pos === 'fixed';
 			};
 
+			// Active conversation with messages:
+			// Anchor the usage row BELOW the composer card so it never renders inside
+			// or overlaps the message input box and controls.
+			if (this.hasMessages()) {
+				const chatInput = document.querySelector(CC.DOM.CHAT_INPUT);
+				const composer = document.querySelector(CC.DOM.CHAT_COMPOSER);
+
+				const card =
+					(chatInput && (
+						chatInput.closest('.bg-surface-3') ||
+						chatInput.closest('[data-cds="ChatComposer"] > div') ||
+						chatInput.closest('[data-cds="ChatComposer"]')?.firstElementChild ||
+						chatInput.closest('fieldset') ||
+						chatInput.closest('form') ||
+						chatInput.closest('[data-cds="ChatComposer"]')
+					)) ||
+					(composer && (
+						composer.querySelector(':scope > .bg-surface-3') ||
+						(composer.classList.contains('bg-surface-3') ? composer : null) ||
+						composer.firstElementChild ||
+						composer
+					));
+
+				if (card && card.parentElement) {
+					if (card.nextElementSibling !== this.usageLine) {
+						card.after(this.usageLine);
+					}
+					this.usageLine.classList.remove('cc-usageRow--inComposer');
+					this.usageLine.classList.add('cc-usageRow--belowComposer');
+					this.refreshProgressChrome();
+					return;
+				}
+			}
+
+			// Fresh / empty chat behavior (UNTOUCHED)
 			// Tier 1: Modern composer layout (anchoring to chat input or composer card)
 			const chatInput = document.querySelector(CC.DOM.CHAT_INPUT);
 			if (chatInput) {
@@ -386,6 +434,7 @@
 					if (composerFlowChild.nextElementSibling !== this.usageLine) {
 						composerFlowChild.after(this.usageLine);
 					}
+					this.usageLine.classList.remove('cc-usageRow--belowComposer');
 					this.usageLine.classList.add('cc-usageRow--inComposer');
 					this.refreshProgressChrome();
 					return;
@@ -402,6 +451,7 @@
 					if (targetBox && targetBox.lastElementChild !== this.usageLine) {
 						targetBox.appendChild(this.usageLine);
 					}
+					this.usageLine.classList.remove('cc-usageRow--belowComposer');
 					this.usageLine.classList.add('cc-usageRow--inComposer');
 					this.refreshProgressChrome();
 					return;
@@ -421,6 +471,7 @@
 					if (targetBox && targetBox.lastElementChild !== this.usageLine) {
 						targetBox.appendChild(this.usageLine);
 					}
+					this.usageLine.classList.remove('cc-usageRow--belowComposer');
 					this.usageLine.classList.add('cc-usageRow--inComposer');
 					this.refreshProgressChrome();
 					return;
@@ -451,6 +502,7 @@
 
 				if (toolbarRow && toolbarRow.nextElementSibling !== this.usageLine) {
 					this.usageLine.classList.remove('cc-usageRow--inComposer');
+					this.usageLine.classList.remove('cc-usageRow--belowComposer');
 					toolbarRow.after(this.usageLine);
 					this.refreshProgressChrome();
 					return;
@@ -461,6 +513,7 @@
 			if (chatInput && chatInput.parentElement) {
 				const parent = chatInput.closest('.flex-col') || chatInput.parentElement;
 				if (parent && parent.lastElementChild !== this.usageLine) {
+					this.usageLine.classList.remove('cc-usageRow--belowComposer');
 					this.usageLine.classList.add('cc-usageRow--inComposer');
 					parent.appendChild(this.usageLine);
 					this.refreshProgressChrome();

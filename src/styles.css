@@ -27,6 +27,13 @@
 	margin-top: 2px;
 }
 
+.cc-usageRow--belowComposer {
+	margin-top: 6px;
+	margin-bottom: 4px;
+	padding-left: 8px;
+	padding-right: 8px;
+}
+
 .cc-usageRow--dim {
 	opacity: 0.6;
 }
