@@ -196,12 +196,12 @@
 
 			this.domObserver = new MutationObserver(() => {
 				const placement = this._getUsagePlacement();
-				// A replaced composer can leave its outside row connected to the
-				// page. Check its position too, rather than only its existence.
+				// Check the host and footer order as well as connection, since
+				// Claude can replace just part of the composer during navigation.
 				const usageMissing = this.usageLine &&
-					(!document.contains(this.usageLine) || (placement && (placement.outside
-						? placement.anchor.nextElementSibling !== this.usageLine
-						: this.usageLine.parentElement !== placement.anchor)));
+					(!document.contains(this.usageLine) || (placement &&
+						(this.usageLine.parentElement !== placement.anchor ||
+							(placement.outside && placement.anchor.lastElementChild !== this.usageLine))));
 				const headerMissing = !document.contains(this.headerContainer);
 
 				if (usageMissing && !usageReattachPending) {
@@ -349,9 +349,10 @@
 			const placement = this._getUsagePlacement();
 			if (placement) {
 				this.usageLine.classList.toggle('cc-usageRow--outside', placement.outside);
-				if (placement.outside) {
-					if (placement.anchor.nextElementSibling !== this.usageLine) placement.anchor.after(this.usageLine);
-				} else if (this.usageLine.parentElement !== placement.anchor) {
+				// Chat usage belongs in the composer dock after the footer, but
+				// outside the input card. The dock then includes its height/inset.
+				if (this.usageLine.parentElement !== placement.anchor ||
+					(placement.outside && placement.anchor.lastElementChild !== this.usageLine)) {
 					placement.anchor.appendChild(this.usageLine);
 				}
 				this.refreshProgressChrome();
