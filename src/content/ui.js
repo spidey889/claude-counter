@@ -259,6 +259,11 @@
 			this.weeklyGroup.appendChild(this.weeklyUsageSpan);
 
 			this.usageLine.appendChild(this.sessionGroup);
+			this.usageStatus = document.createElement('span');
+			this.usageStatus.className = 'cc-usageStatus cc-hidden';
+			this.usageStatus.textContent = 'Waiting for usage';
+			this.usageStatus.setAttribute('role', 'status');
+			this.usageLine.appendChild(this.usageStatus);
 			this.usageLine.appendChild(this.weeklyGroup);
 
 			this.refreshProgressChrome();
@@ -294,13 +299,13 @@
 
 			setupTooltip(
 				this.sessionGroup,
-				makeTooltip("5-hour session window.\nThe bar shows your usage.\nThe line marks where you are in the window.\n— means Claude has not provided usage yet."),
+				makeTooltip("5-hour session window.\nThe bar shows your usage.\nThe line marks where you are in the window.\nUsage appears when Claude provides it."),
 				{ topOffset: 8 }
 			);
 
 			setupTooltip(
 				this.weeklyGroup,
-				makeTooltip("7-day usage window.\nThe bar shows your usage.\nThe line marks where you are in the window.\n— means Claude has not provided usage yet."),
+				makeTooltip("7-day usage window.\nThe bar shows your usage.\nThe line marks where you are in the window.\nUsage appears when Claude provides it."),
 				{ topOffset: 8 }
 			);
 		}
@@ -468,9 +473,11 @@
 			const weekly = usage?.seven_day || null;
 			const hasAnyUsage =
 				!!(session && typeof session.utilization === 'number') || !!(weekly && typeof weekly.utilization === 'number');
-			// Unknown usage is not 0%. Show both tracks with a dash while
-			// waiting for REST/SSE, including accounts with null REST windows.
+			// Unknown usage is not 0%. Keep both tracks visible, but reserve
+			// percentages and countdowns for values Claude actually provides.
 			this.usageLine?.classList.remove('cc-hidden');
+			this.usageLine?.classList.toggle('cc-usageRow--empty', !hasAnyUsage);
+			this.usageStatus?.classList.toggle('cc-hidden', hasAnyUsage);
 
 			if (session && typeof session.utilization === 'number') {
 				const rawPct = session.utilization;
@@ -485,7 +492,7 @@
 				this.sessionBarFill.classList.toggle('cc-warn', width >= 90);
 				this.sessionBarFill.classList.toggle('cc-full', width >= 99.5);
 			} else {
-				this.sessionUsageSpan.textContent = 'Session: —% · resets in —h —m';
+				this.sessionUsageSpan.textContent = hasAnyUsage ? 'Session: —' : 'Session';
 				this.sessionBarFill.style.width = '0%';
 				this.sessionBarFill.classList.remove('cc-warn', 'cc-full');
 				this.sessionResetMs = null;
@@ -514,7 +521,7 @@
 			} else {
 				this.weeklyUsageSpan.classList.remove('cc-hidden');
 				this.weeklyBar.classList.remove('cc-hidden');
-				this.weeklyUsageSpan.textContent = 'Weekly: —% · resets in —d —h';
+				this.weeklyUsageSpan.textContent = 'Weekly';
 				this.weeklyBarFill.style.width = '0%';
 				this.weeklyResetMs = null;
 				this.weeklyWindowStartMs = null;
