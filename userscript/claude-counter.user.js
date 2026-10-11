@@ -585,11 +585,13 @@
 			let headerReattachPending = false;
 
 			this.domObserver = new MutationObserver(() => {
-				const composer = document.querySelector(CC.DOM.CHAT_COMPOSER);
+				const placement = this._getUsagePlacement();
 				// A replaced composer can leave its outside row connected to the
 				// page. Check its position too, rather than only its existence.
 				const usageMissing = this.usageLine &&
-					(!document.contains(this.usageLine) || (composer && composer.nextElementSibling !== this.usageLine));
+					(!document.contains(this.usageLine) || (placement && (placement.outside
+						? placement.anchor.nextElementSibling !== this.usageLine
+						: this.usageLine.parentElement !== placement.anchor)));
 				const headerMissing = !document.contains(this.headerContainer);
 
 				if (usageMissing && !usageReattachPending) {
@@ -722,14 +724,26 @@
 			this.refreshProgressChrome();
 		}
 
+		_getUsagePlacement() {
+			const composer = document.querySelector(CC.DOM.CHAT_COMPOSER);
+			if (!composer) return null;
+			// Keep the original home/new composer; only started conversations
+			// place usage below the model selector and toolbar footer.
+			const outside = /^\/chat\/[^/]+/.test(window.location.pathname);
+			const anchor = outside ? composer : composer.querySelector(':scope > .bg-surface-3') || composer;
+			return { outside, anchor };
+		}
+
 		attachUsageLine() {
 			if (!this.usageLine) return;
-			const composer = document.querySelector(CC.DOM.CHAT_COMPOSER);
-			if (composer) {
-				// Follow the whole composer, including its model/toolbar footer,
-				// so usage stays below the controls and outside the input border.
-				this.usageLine.classList.add('cc-usageRow--outside');
-				if (composer.nextElementSibling !== this.usageLine) composer.after(this.usageLine);
+			const placement = this._getUsagePlacement();
+			if (placement) {
+				this.usageLine.classList.toggle('cc-usageRow--outside', placement.outside);
+				if (placement.outside) {
+					if (placement.anchor.nextElementSibling !== this.usageLine) placement.anchor.after(this.usageLine);
+				} else if (this.usageLine.parentElement !== placement.anchor) {
+					placement.anchor.appendChild(this.usageLine);
+				}
 				this.refreshProgressChrome();
 				return;
 			}
