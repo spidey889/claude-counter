@@ -195,7 +195,12 @@
 			let headerReattachPending = false;
 
 			this.domObserver = new MutationObserver(() => {
-				const usageMissing = this.usageLine && !document.contains(this.usageLine);
+				const composer = document.querySelector(CC.DOM.CHAT_COMPOSER);
+				const usageAnchor = composer?.querySelector(':scope > .bg-surface-3') || composer;
+				// A replaced composer can leave its outside row connected to the
+				// page. Check its position too, rather than only its existence.
+				const usageMissing = this.usageLine &&
+					(!document.contains(this.usageLine) || (usageAnchor && usageAnchor.previousElementSibling !== this.usageLine));
 				const headerMissing = !document.contains(this.headerContainer);
 
 				if (usageMissing && !usageReattachPending) {
@@ -332,13 +337,15 @@
 			if (!this.usageLine) return;
 			const composer = document.querySelector(CC.DOM.CHAT_COMPOSER);
 			if (composer) {
-				// Modern actions use absolute positioning/display:contents. Put
-				// the row in the card's normal flex flow, below all its controls.
+				// Keep usage outside the input border in normal flow so it never
+				// enlarges the input card or overlaps Claude's controls.
 				const card = composer.querySelector(':scope > .bg-surface-3') || composer;
-				if (this.usageLine.parentElement !== card) card.appendChild(this.usageLine);
+				this.usageLine.classList.add('cc-usageRow--outside');
+				if (card.previousElementSibling !== this.usageLine) card.before(this.usageLine);
 				this.refreshProgressChrome();
 				return;
 			}
+			this.usageLine.classList.remove('cc-usageRow--outside');
 			const modelSelector = document.querySelector(CC.DOM.MODEL_SELECTOR_DROPDOWN);
 			if (!modelSelector) return;
 			const gridContainer = modelSelector.closest('[data-testid="chat-input-grid-container"]');

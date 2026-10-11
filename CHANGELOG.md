@@ -2,6 +2,7 @@
 
 ## 2026-10-11
 
+- Moved usage bars above the composer border to try an outside placement. The input retains its native height; bars remain in normal flow and reconnect after composer replacement.
 - Replaced the cluttered dashed percentage/countdown placeholders with simple Session/Weekly labels, muted tracks, and a single "Waiting for usage" note. Populated bars retain their original format.
 - Kept the full percentage and reset-countdown format when usage is unavailable, using dashes for each missing value so empty bars match the populated row's layout.
 - Restored `main` to the original imported author commit `18b18eb` before starting this focused repair. Prior local work is preserved on `codex/backup-before-original-reset-2026-10-11`.

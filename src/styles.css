@@ -28,6 +28,12 @@
 	opacity: 0.6;
 }
 
+.cc-usageRow--outside {
+	flex-shrink: 0;
+	margin-bottom: 6px;
+	padding: 2px 12px;
+}
+
 .cc-usageGroup {
 	display: flex;
 	align-items: center;
