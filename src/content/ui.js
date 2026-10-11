@@ -196,11 +196,10 @@
 
 			this.domObserver = new MutationObserver(() => {
 				const composer = document.querySelector(CC.DOM.CHAT_COMPOSER);
-				const usageAnchor = composer?.querySelector(':scope > .bg-surface-3') || composer;
 				// A replaced composer can leave its outside row connected to the
 				// page. Check its position too, rather than only its existence.
 				const usageMissing = this.usageLine &&
-					(!document.contains(this.usageLine) || (usageAnchor && usageAnchor.previousElementSibling !== this.usageLine));
+					(!document.contains(this.usageLine) || (composer && composer.nextElementSibling !== this.usageLine));
 				const headerMissing = !document.contains(this.headerContainer);
 
 				if (usageMissing && !usageReattachPending) {
@@ -337,11 +336,10 @@
 			if (!this.usageLine) return;
 			const composer = document.querySelector(CC.DOM.CHAT_COMPOSER);
 			if (composer) {
-				// Keep usage outside the input border in normal flow so it never
-				// enlarges the input card or overlaps Claude's controls.
-				const card = composer.querySelector(':scope > .bg-surface-3') || composer;
+				// Follow the whole composer, including its model/toolbar footer,
+				// so usage stays below the controls and outside the input border.
 				this.usageLine.classList.add('cc-usageRow--outside');
-				if (card.previousElementSibling !== this.usageLine) card.before(this.usageLine);
+				if (composer.nextElementSibling !== this.usageLine) composer.after(this.usageLine);
 				this.refreshProgressChrome();
 				return;
 			}
