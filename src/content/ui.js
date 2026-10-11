@@ -485,7 +485,7 @@
 				this.sessionBarFill.classList.toggle('cc-warn', width >= 90);
 				this.sessionBarFill.classList.toggle('cc-full', width >= 99.5);
 			} else {
-				this.sessionUsageSpan.textContent = 'Session: —';
+				this.sessionUsageSpan.textContent = 'Session: —% · resets in —h —m';
 				this.sessionBarFill.style.width = '0%';
 				this.sessionBarFill.classList.remove('cc-warn', 'cc-full');
 				this.sessionResetMs = null;
@@ -514,7 +514,7 @@
 			} else {
 				this.weeklyUsageSpan.classList.remove('cc-hidden');
 				this.weeklyBar.classList.remove('cc-hidden');
-				this.weeklyUsageSpan.textContent = 'Weekly: —';
+				this.weeklyUsageSpan.textContent = 'Weekly: —% · resets in —d —h';
 				this.weeklyBarFill.style.width = '0%';
 				this.weeklyResetMs = null;
 				this.weeklyWindowStartMs = null;
