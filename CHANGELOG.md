@@ -2,6 +2,7 @@
 
 ## 2026-10-11
 
+- Repaired usage collection independently of the accepted bar layout. Moved the page bridge from a late script-tag injection to a manifest-declared `MAIN` script at document start, added a readiness handshake with early quota-event replay, and corrected SSE framing/type handling and POST Request detection. Synchronized userscript parsing and added five usage-flow regressions that fail against the previous implementation. Free accounts still wait for a normal reply when REST returns null; no background probe messages are sent.
 - Aligned the chat usage row with the native footer and kept it inside the composer dock, outside the input card. Removed the extra top gap and added 12px of bottom breathing room; retained New-page placement and outlined bars.
 - Restored the original outlined box style for empty bars, replacing the slim muted tracks while retaining the simple empty-state labels and page-specific placement.
 - Restricted the below-composer placement to started conversations. Restored the original inside-card row on home/new-chat pages, including navigation between New and an existing chat.

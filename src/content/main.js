@@ -137,7 +137,7 @@
 	ui.initialize();
 
 	// Bridge must be ready before we can make requests
-	const bridgeReady = CC.injectBridgeOnce();
+	const bridgeReady = CC.waitForBridge();
 
 	function applyUsageUpdate(normalized, source) {
 		if (!normalized) return;
@@ -158,7 +158,7 @@
 	}
 
 	async function refreshUsage() {
-		await bridgeReady;
+		if (!await bridgeReady) return;
 		const orgId = currentOrgId || getOrgIdFromCookie();
 		if (!orgId) return;
 		updateOrgIdIfNeeded(orgId);
@@ -180,7 +180,7 @@
 	}
 
 	async function refreshConversation() {
-		await bridgeReady;
+		if (!await bridgeReady) return;
 		if (!currentConversationId) {
 			ui.setConversationMetrics();
 			return;

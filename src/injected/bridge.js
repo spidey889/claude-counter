@@ -2,6 +2,7 @@
 	'use strict';
 
 	const CC_MARKER = 'ClaudeCounter';
+	let lastMessageLimit = null;
 
 	// Capture original fetch before anyone else can wrap it
 	const originalFetch = window.fetch;
@@ -25,9 +26,10 @@
 	window.fetch = async (...args) => {
 		const url = toAbsoluteUrl(args[0]);
 		const opts = args[1] || {};
+		const method = (opts.method || (args[0] instanceof Request ? args[0].method : 'GET')).toUpperCase();
 
 		// Detect generation start (completion requests)
-		if (url && opts.method === 'POST' && (url.includes('/completion') || url.includes('/retry_completion'))) {
+		if (url && method === 'POST' && (url.includes('/completion') || url.includes('/retry_completion'))) {
 			post('cc:generation_start', {});
 		}
 
@@ -50,6 +52,7 @@
 	};
 
 	function post(type, payload) {
+		if (type === 'cc:message_limit') lastMessageLimit = payload;
 		window.postMessage({ cc: CC_MARKER, type, payload }, '*');
 	}
 
@@ -100,28 +103,54 @@
 			if (!reader) return;
 			const decoder = new TextDecoder();
 			let buffer = '';
+			let eventType = '';
+			let dataLines = [];
+			let skipLf = false;
+
+			const dispatch = () => {
+				try {
+					const json = JSON.parse(dataLines.join('\n'));
+					// SSE names the event separately; JSON need not repeat its type.
+					if ((eventType === 'message_limit' || json?.type === 'message_limit') && json.message_limit) {
+						post('cc:message_limit', json.message_limit);
+					}
+				} catch {
+					// Ignore keepalives, non-JSON data and malformed events.
+				}
+				eventType = '';
+				dataLines = [];
+			};
+			const consumeLine = (line) => {
+				if (!line) return dispatch();
+				const colon = line.indexOf(':');
+				const field = colon < 0 ? line : line.slice(0, colon);
+				let value = colon < 0 ? '' : line.slice(colon + 1);
+				if (value.startsWith(' ')) value = value.slice(1);
+				if (field === 'event') eventType = value;
+				if (field === 'data') dataLines.push(value);
+			};
+			const consumeChunk = (chunk) => {
+				// CRLF may be split between reads. Treat it as one line ending.
+				for (const char of chunk) {
+					if (skipLf && char === '\n') { skipLf = false; continue; }
+					skipLf = char === '\r';
+					if (char === '\r' || char === '\n') {
+						consumeLine(buffer);
+						buffer = '';
+					} else {
+						buffer += char;
+					}
+				}
+			};
 
 			while (true) {
 				const { done, value } = await reader.read();
 				if (done) break;
-
-				buffer += decoder.decode(value, { stream: true });
-				const lines = buffer.split(/\r\n|\r|\n/);
-				buffer = lines.pop() || '';
-				for (const line of lines) {
-					if (!line.startsWith('data:')) continue;
-					const raw = line.slice(5).trim();
-					if (!raw) continue;
-					try {
-						const json = JSON.parse(raw);
-						if (json?.type === 'message_limit' && json.message_limit) {
-							post('cc:message_limit', json.message_limit);
-						}
-					} catch {
-						// ignore
-					}
-				}
+				consumeChunk(decoder.decode(value, { stream: true }));
 			}
+			consumeChunk(decoder.decode());
+			if (buffer) consumeLine(buffer);
+			if (dataLines.length) dispatch();
 		} catch {
 			// best-effort; don't break claude.ai
 		}
@@ -135,6 +164,12 @@
 
 		const { requestId, kind, payload } = data;
 		try {
+			if (kind === 'ready') {
+				postResponse(requestId, true, null, null);
+				if (lastMessageLimit) post('cc:message_limit', lastMessageLimit);
+				return;
+			}
+
 			if (kind === 'hash') {
 				const text = typeof payload?.text === 'string' ? payload.text : '';
 				if (!text || !crypto?.subtle?.digest) {

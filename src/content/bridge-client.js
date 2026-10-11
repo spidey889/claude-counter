@@ -3,10 +3,6 @@
 
 	const CC = (globalThis.ClaudeCounter = globalThis.ClaudeCounter || {});
 
-	function getRuntime() {
-		return globalThis.browser?.runtime || globalThis.chrome?.runtime || null;
-	}
-
 	function makeRequestId() {
 		return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 	}
@@ -88,28 +84,15 @@
 
 	let bridgeReadyPromise = null;
 
-	function injectBridgeOnce() {
+	function waitForBridge() {
 		if (bridgeReadyPromise) return bridgeReadyPromise;
-
-		const runtime = getRuntime();
-		if (!runtime) return Promise.resolve(false);
-
-		if (document.getElementById(CC.DOM.BRIDGE_SCRIPT_ID)) {
-			return Promise.resolve(true);
-		}
-
-		bridgeReadyPromise = new Promise((resolve) => {
-			const script = document.createElement('script');
-			script.id = CC.DOM.BRIDGE_SCRIPT_ID;
-			script.src = runtime.getURL('src/injected/bridge.js');
-			script.onload = () => resolve(true);
-			script.onerror = () => resolve(false);
-			(document.head || document.documentElement).appendChild(script);
-		});
-
+		// The manifest installs the page bridge before Claude can cache fetch.
+		// A handshake also replays usage received before this isolated UI loaded.
+		bridgeReadyPromise = CC.bridge.request('ready', {}, { timeoutMs: 5000 })
+			.then(() => true, () => false);
 		return bridgeReadyPromise;
 	}
 
 	CC.bridge = new BridgeClient();
-	CC.injectBridgeOnce = injectBridgeOnce;
+	CC.waitForBridge = waitForBridge;
 })();

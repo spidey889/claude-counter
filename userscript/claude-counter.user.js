@@ -54,7 +54,7 @@
 		window.fetch = async (...args) => {
 			const url = toAbsoluteUrl(args[0]);
 			const opts = args[1] || {};
-			const method = (opts.method || 'GET').toUpperCase();
+			const method = (opts.method || (args[0] instanceof Request ? args[0].method : 'GET')).toUpperCase();
 
 			if (url && method === 'POST' && (url.includes('/completion') || url.includes('/retry_completion'))) {
 				try {
@@ -113,30 +113,57 @@
 			if (!reader) return;
 			const decoder = new TextDecoder();
 			let buffer = '';
+			let eventType = '';
+			let dataLines = [];
+			let skipLf = false;
+
+			const dispatch = () => {
+				try {
+					const json = JSON.parse(dataLines.join('\n'));
+					// SSE names the event separately; JSON need not repeat its type.
+					if ((eventType === 'message_limit' || json?.type === 'message_limit') && json.message_limit) {
+						CC._ccInternal.lastMessageLimit = json.message_limit;
+						CC._ccInternal.onMessageLimit(json.message_limit);
+					}
+				} catch {
+					// Ignore keepalives, non-JSON data and malformed events.
+				}
+				eventType = '';
+				dataLines = [];
+			};
+			const consumeLine = (line) => {
+				if (!line) return dispatch();
+				const colon = line.indexOf(':');
+				const field = colon < 0 ? line : line.slice(0, colon);
+				let value = colon < 0 ? '' : line.slice(colon + 1);
+				if (value.startsWith(' ')) value = value.slice(1);
+				if (field === 'event') eventType = value;
+				if (field === 'data') dataLines.push(value);
+			};
+			const consumeChunk = (chunk) => {
+				// CRLF may be split between reads. Treat it as one line ending.
+				for (const char of chunk) {
+					if (skipLf && char === '\n') { skipLf = false; continue; }
+					skipLf = char === '\r';
+					if (char === '\r' || char === '\n') {
+						consumeLine(buffer);
+						buffer = '';
+					} else {
+						buffer += char;
+					}
+				}
+			};
 
 			while (true) {
 				const { done, value } = await reader.read();
 				if (done) break;
-
-				buffer += decoder.decode(value, { stream: true });
-				const lines = buffer.split(/\r\n|\r|\n/);
-				buffer = lines.pop() || '';
-				for (const line of lines) {
-					if (!line.startsWith('data:')) continue;
-					const raw = line.slice(5).trim();
-					if (!raw) continue;
-					try {
-						const json = JSON.parse(raw);
-						if (json?.type === 'message_limit' && json.message_limit) {
-							CC._ccInternal.onMessageLimit(json.message_limit);
-						}
-					} catch {
-						// ignore
-					}
-				}
+				consumeChunk(decoder.decode(value, { stream: true }));
 			}
+			consumeChunk(decoder.decode());
+			if (buffer) consumeLine(buffer);
+			if (dataLines.length) dispatch();
 		} catch {
-			// best-effort; do not break claude.ai
+			// best-effort; don't break claude.ai
 		}
 	}
 })();
@@ -150,8 +177,7 @@
 		CHAT_MENU_TRIGGER: '[data-testid="chat-menu-trigger"]',
 		CHAT_COMPOSER: '[data-cds="ChatComposer"], [data-testid="chat-input-grid-container"]',
 		MODEL_SELECTOR_DROPDOWN: '[data-cds="ModelSelector"], [data-testid="model-selector-dropdown"]',
-		CHAT_PROJECT_WRAPPER: '.chat-project-wrapper',
-		BRIDGE_SCRIPT_ID: 'cc-bridge-script'
+		CHAT_PROJECT_WRAPPER: '.chat-project-wrapper'
 	});
 
 	CC.CONST = Object.freeze({
@@ -1276,6 +1302,7 @@
 		CC._ccInternal.onGenerationStart = handleGenerationStart;
 		CC._ccInternal.onConversationData = handleConversationPayload;
 		CC._ccInternal.onMessageLimit = handleMessageLimit;
+		if (CC._ccInternal.lastMessageLimit) handleMessageLimit(CC._ccInternal.lastMessageLimit);
 		CC._ccInternal.onUrlChange = handleUrlChange;
 
 		handleUrlChange();

@@ -31,6 +31,13 @@
   "content_scripts": [
     {
       "matches": ["https://claude.ai/*"],
+      "js": ["src/injected/bridge.js"],
+      "run_at": "document_start",
+      "world": "MAIN"
+    },
+    {
+      "matches": ["https://claude.ai/*"],
+      "run_at": "document_idle",
       "css": ["src/styles.css"],
       "js": [
         "src/content/constants.js",
@@ -40,12 +47,6 @@
         "src/content/ui.js",
         "src/content/main.js"
       ]
-    }
-  ],
-  "web_accessible_resources": [
-    {
-      "resources": ["src/injected/bridge.js"],
-      "matches": ["https://claude.ai/*"]
     }
   ]
 }
