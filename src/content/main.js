@@ -126,6 +126,7 @@
 	let lastUsageSseMs = 0;
 	let usageFetchInFlight = false;
 	let lastUsageUpdateMs = 0;
+	let lastUsageFetchMs = 0;
 	const rolloverHandledForResetMs = { five_hour: null, seven_day: null };
 
 	const ui = new CC.ui.CounterUI({
@@ -164,6 +165,7 @@
 
 		if (usageFetchInFlight) return;
 		usageFetchInFlight = true;
+		lastUsageFetchMs = Date.now();
 		let raw;
 		try {
 			raw = await CC.bridge.requestUsage(orgId);
@@ -223,25 +225,23 @@
 
 		// Attach usage line and header independently - they have different anchor elements
 		// and CHAT_MENU_TRIGGER doesn't exist on home/new pages
-		waitForElement(CC.DOM.MODEL_SELECTOR_DROPDOWN, 60000).then((el) => {
+		waitForElement(`${CC.DOM.CHAT_COMPOSER}, ${CC.DOM.MODEL_SELECTOR_DROPDOWN}`, 60000).then((el) => {
 			if (el) ui.attachUsageLine();
 		});
 		waitForElement(CC.DOM.CHAT_MENU_TRIGGER, 60000).then((el) => {
 			if (el) ui.attachHeader();
 		});
 
+		// Usage belongs to the account, so fetch it on /new as well as chats.
+		updateOrgIdIfNeeded(getOrgIdFromCookie());
+		if (!usageState) refreshUsage();
+
 		if (!currentConversationId) {
 			ui.setConversationMetrics();
 			return;
 		}
 
-		// Best-effort orgId from cookie.
-		updateOrgIdIfNeeded(getOrgIdFromCookie());
-
 		await refreshConversation();
-
-		// Usage is org-level, not conversation-level. Only fetch on first load or if stale.
-		if (!usageState) await refreshUsage();
 	}
 
 	const unobserveUrl = observeUrlChanges(handleUrlChange);
@@ -306,7 +306,8 @@
 		// Optional hourly safety refresh.
 		const ONE_HOUR_MS = 60 * 60 * 1000;
 		const sseAge = now - lastUsageSseMs;
-		const anyAge = now - lastUsageUpdateMs;
+		// A null response (common on free accounts) must not retry every second.
+		const anyAge = now - Math.max(lastUsageUpdateMs, lastUsageFetchMs);
 		if (!document.hidden && sseAge > ONE_HOUR_MS && anyAge > ONE_HOUR_MS) {
 			refreshUsage();
 		}

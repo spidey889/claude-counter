@@ -178,6 +178,7 @@
 			this._initUsageLine();
 
 			this._setupTooltips();
+			this.setUsage(null);
 			this._observeDom();
 			this._observeTheme();
 		}
@@ -199,7 +200,7 @@
 
 				if (usageMissing && !usageReattachPending) {
 					usageReattachPending = true;
-					CC.waitForElement(CC.DOM.MODEL_SELECTOR_DROPDOWN, 60000).then((el) => {
+					CC.waitForElement(`${CC.DOM.CHAT_COMPOSER}, ${CC.DOM.MODEL_SELECTOR_DROPDOWN}`, 60000).then((el) => {
 						usageReattachPending = false;
 						if (el) this.attachUsageLine();
 					});
@@ -219,7 +220,7 @@
 		_initUsageLine() {
 			this.usageLine = document.createElement('div');
 			this.usageLine.className =
-				'text-text-400 text-[11px] cc-usageRow cc-hidden flex flex-row items-center gap-3 w-full';
+				'text-text-400 text-[11px] cc-usageRow flex flex-row items-center gap-3 w-full';
 
 			this.sessionUsageSpan = document.createElement('span');
 			this.sessionUsageSpan.className = 'cc-usageText';
@@ -293,13 +294,13 @@
 
 			setupTooltip(
 				this.sessionGroup,
-				makeTooltip("5-hour session window.\nThe bar shows your usage.\nThe line marks where you are in the window."),
+				makeTooltip("5-hour session window.\nThe bar shows your usage.\nThe line marks where you are in the window.\n— means Claude has not provided usage yet."),
 				{ topOffset: 8 }
 			);
 
 			setupTooltip(
 				this.weeklyGroup,
-				makeTooltip("7-day usage window.\nThe bar shows your usage.\nThe line marks where you are in the window."),
+				makeTooltip("7-day usage window.\nThe bar shows your usage.\nThe line marks where you are in the window.\n— means Claude has not provided usage yet."),
 				{ topOffset: 8 }
 			);
 		}
@@ -324,6 +325,15 @@
 
 		attachUsageLine() {
 			if (!this.usageLine) return;
+			const composer = document.querySelector(CC.DOM.CHAT_COMPOSER);
+			if (composer) {
+				// Modern actions use absolute positioning/display:contents. Put
+				// the row in the card's normal flex flow, below all its controls.
+				const card = composer.querySelector(':scope > .bg-surface-3') || composer;
+				if (this.usageLine.parentElement !== card) card.appendChild(this.usageLine);
+				this.refreshProgressChrome();
+				return;
+			}
 			const modelSelector = document.querySelector(CC.DOM.MODEL_SELECTOR_DROPDOWN);
 			if (!modelSelector) return;
 			const gridContainer = modelSelector.closest('[data-testid="chat-input-grid-container"]');
@@ -458,7 +468,9 @@
 			const weekly = usage?.seven_day || null;
 			const hasAnyUsage =
 				!!(session && typeof session.utilization === 'number') || !!(weekly && typeof weekly.utilization === 'number');
-			this.usageLine?.classList.toggle('cc-hidden', !hasAnyUsage);
+			// Unknown usage is not 0%. Show both tracks with a dash while
+			// waiting for REST/SSE, including accounts with null REST windows.
+			this.usageLine?.classList.remove('cc-hidden');
 
 			if (session && typeof session.utilization === 'number') {
 				const rawPct = session.utilization;
@@ -473,7 +485,7 @@
 				this.sessionBarFill.classList.toggle('cc-warn', width >= 90);
 				this.sessionBarFill.classList.toggle('cc-full', width >= 99.5);
 			} else {
-				this.sessionUsageSpan.textContent = '';
+				this.sessionUsageSpan.textContent = 'Session: —';
 				this.sessionBarFill.style.width = '0%';
 				this.sessionBarFill.classList.remove('cc-warn', 'cc-full');
 				this.sessionResetMs = null;
@@ -481,8 +493,8 @@
 			}
 
 			const hasWeekly = weekly && typeof weekly.utilization === 'number';
-			this.weeklyGroup?.classList.toggle('cc-hidden', !hasWeekly);
-			this.sessionGroup?.classList.toggle('cc-usageGroup--single', !hasWeekly);
+			this.weeklyGroup?.classList.toggle('cc-hidden', hasAnyUsage && !hasWeekly);
+			this.sessionGroup?.classList.toggle('cc-usageGroup--single', hasAnyUsage && !hasWeekly);
 
 			if (hasWeekly) {
 				this.weeklyUsageSpan.classList.remove('cc-hidden');
@@ -500,8 +512,10 @@
 				this.weeklyBarFill.classList.toggle('cc-warn', width >= 90);
 				this.weeklyBarFill.classList.toggle('cc-full', width >= 99.5);
 			} else {
-				this.weeklyUsageSpan.classList.add('cc-hidden');
-				this.weeklyBar.classList.add('cc-hidden');
+				this.weeklyUsageSpan.classList.remove('cc-hidden');
+				this.weeklyBar.classList.remove('cc-hidden');
+				this.weeklyUsageSpan.textContent = 'Weekly: —';
+				this.weeklyBarFill.style.width = '0%';
 				this.weeklyResetMs = null;
 				this.weeklyWindowStartMs = null;
 				this.weeklyBarFill.classList.remove('cc-warn', 'cc-full');
