@@ -2,6 +2,7 @@
 
 ## 2026-10-11
 
+- Restored the original outlined box style for empty bars, replacing the slim muted tracks while retaining the simple empty-state labels and page-specific placement.
 - Restricted the below-composer placement to started conversations. Restored the original inside-card row on home/new-chat pages, including navigation between New and an existing chat.
 - Moved the outside usage row underneath the entire composer, including Sonnet and the other footer controls, after trying the above-input placement.
 - Moved usage bars above the composer border to try an outside placement. The input retains its native height; bars remain in normal flow and reconnect after composer replacement.

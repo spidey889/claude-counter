@@ -113,13 +113,10 @@
 	flex: 1;
 }
 
-/* Quiet tracks distinguish unavailable usage from a measured zero. */
+/* Empty bars keep a compact width and the original outlined box style. */
 .cc-usageRow--empty .cc-bar--usage {
-	height: 4px;
 	min-width: 0;
 	max-width: 120px;
-	border: 0;
-	background: color-mix(in srgb, var(--cc-stroke) 35%, transparent);
 }
 
 .cc-usageStatus {
