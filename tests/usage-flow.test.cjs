@@ -58,11 +58,8 @@ function browserHarness(wire, chunks = [wire]) {
 		MutationObserver: class { observe() {} disconnect() {} },
 		document: {
 			cookie: 'lastActiveOrg=test-org', hidden: false,
-			querySelector() { return {}; }, addEventListener() {}, getElementById() { return null; },
-			createElement() { return {}; },
-			head: { appendChild(script) { run(page, 'src/injected/bridge.js'); script.onload(); } }
+			querySelector() { return {}; }, addEventListener() {}
 		},
-		chrome: { runtime: { getURL: (file) => file } },
 		setTimeout(fn, delay) {
 			const timer = setTimeout(fn, delay);
 			timers.add(timer);

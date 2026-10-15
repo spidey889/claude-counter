@@ -199,9 +199,7 @@
 		const cachedUntil = lastAssistantMs ? lastAssistantMs + CC.CONST.CACHE_WINDOW_MS : null;
 
 		return {
-			trunkMessageCount: trunk.length,
 			totalTokens,
-			lastAssistantMs,
 			cachedUntil
 		};
 	}

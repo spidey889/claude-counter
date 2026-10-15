@@ -403,9 +403,7 @@
 		const cachedUntil = lastAssistantMs ? lastAssistantMs + CC.CONST.CACHE_WINDOW_MS : null;
 
 		return {
-			trunkMessageCount: trunk.length,
 			totalTokens,
-			lastAssistantMs,
 			cachedUntil
 		};
 	}
@@ -524,7 +522,6 @@
 			this.lengthBar = null;
 			this.lengthTooltip = null;
 			this.lastCachedUntilMs = null;
-			this.pendingCache = false;
 
 			this.usageLine = null;
 			this.sessionUsageSpan = null;
@@ -540,8 +537,6 @@
 			this.sessionWindowStartMs = null;
 			this.weeklyWindowStartMs = null;
 			this.refreshingUsage = false;
-
-			this.domObserver = null;
 		}
 
 		getProgressChrome() {
@@ -610,7 +605,7 @@
 			let usageReattachPending = false;
 			let headerReattachPending = false;
 
-			this.domObserver = new MutationObserver(() => {
+			const observer = new MutationObserver(() => {
 				const placement = this._getUsagePlacement();
 				// Check the host and footer order as well as connection, since
 				// Claude can replace just part of the composer during navigation.
@@ -636,7 +631,7 @@
 					});
 				}
 			});
-			this.domObserver.observe(document.body, { childList: true, subtree: true });
+			observer.observe(document.body, { childList: true, subtree: true });
 		}
 
 		_initUsageLine() {
@@ -732,12 +727,6 @@
 			);
 		}
 
-		attach() {
-			this.attachHeader();
-			this.attachUsageLine();
-			this.refreshProgressChrome();
-		}
-
 		attachHeader() {
 			const chatMenu = document.querySelector(CC.DOM.CHAT_MENU_TRIGGER);
 			if (!chatMenu) return;
@@ -807,7 +796,6 @@
 		}
 
 		setPendingCache(pending) {
-			this.pendingCache = pending;
 			if (this.cacheTimeSpan) {
 				if (pending) {
 					this.cacheTimeSpan.style.color = '';
@@ -819,8 +807,6 @@
 		}
 
 		setConversationMetrics({ totalTokens, cachedUntil } = {}) {
-			this.pendingCache = false;
-
 			if (typeof totalTokens !== 'number') {
 				this.lengthDisplay.textContent = '';
 				this.cachedDisplay.textContent = '';
@@ -867,7 +853,6 @@
 				const secondsLeft = Math.max(0, Math.ceil((cachedUntil - now) / 1000));
 				const { boldColor } = this.getProgressChrome();
 				this.cacheTimeSpan = Object.assign(document.createElement('span'), {
-					className: 'cc-cacheTime',
 					textContent: formatSeconds(secondsLeft)
 				});
 				this.cacheTimeSpan.style.color = boldColor;
@@ -911,7 +896,6 @@
 				!!(session && typeof session.utilization === 'number') || !!(weekly && typeof weekly.utilization === 'number');
 			// Unknown usage is not 0%. Keep both tracks visible, but reserve
 			// percentages and countdowns for values Claude actually provides.
-			this.usageLine?.classList.remove('cc-hidden');
 			this.usageLine?.classList.toggle('cc-usageRow--empty', !hasAnyUsage);
 			this.usageStatus?.classList.toggle('cc-hidden', hasAnyUsage);
 
@@ -940,9 +924,6 @@
 			this.sessionGroup?.classList.toggle('cc-usageGroup--single', hasAnyUsage && !hasWeekly);
 
 			if (hasWeekly) {
-				this.weeklyUsageSpan.classList.remove('cc-hidden');
-				this.weeklyBar.classList.remove('cc-hidden');
-
 				const rawPct = weekly.utilization;
 				const pct = Math.round(rawPct * 10) / 10;
 				this.weeklyResetMs = weekly.resets_at ? Date.parse(weekly.resets_at) : null;
@@ -955,8 +936,6 @@
 				this.weeklyBarFill.classList.toggle('cc-warn', width >= 90);
 				this.weeklyBarFill.classList.toggle('cc-full', width >= 99.5);
 			} else {
-				this.weeklyUsageSpan.classList.remove('cc-hidden');
-				this.weeklyBar.classList.remove('cc-hidden');
 				this.weeklyUsageSpan.textContent = 'Weekly';
 				this.weeklyBarFill.style.width = '0%';
 				this.weeklyResetMs = null;
@@ -1004,7 +983,6 @@
 			} else if (this.lastCachedUntilMs && this.lastCachedUntilMs <= now) {
 				this.lastCachedUntilMs = null;
 				this.cacheTimeSpan = null;
-				this.pendingCache = false;
 				this.cachedDisplay.textContent = '';
 				this._renderHeader();
 			}
