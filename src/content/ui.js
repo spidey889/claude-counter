@@ -482,7 +482,6 @@
 				!!(session && typeof session.utilization === 'number') || !!(weekly && typeof weekly.utilization === 'number');
 			// Unknown usage is not 0%. Keep both tracks visible, but reserve
 			// percentages and countdowns for values Claude actually provides.
-			this.usageLine?.classList.toggle('cc-usageRow--empty', !hasAnyUsage);
 			this.usageStatus?.classList.toggle('cc-hidden', hasAnyUsage);
 
 			if (session && typeof session.utilization === 'number') {

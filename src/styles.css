@@ -113,12 +113,6 @@
 	flex: 1;
 }
 
-/* Empty bars keep a compact width and the original outlined box style. */
-.cc-usageRow--empty .cc-bar--usage {
-	min-width: 0;
-	max-width: 120px;
-}
-
 .cc-usageStatus {
 	white-space: nowrap;
 }
